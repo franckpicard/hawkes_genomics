@@ -16,15 +16,16 @@ All commands that you use to use when developing packages...
 fusen::fill_description(
   pkg = here::here(),
   fields = list(
-    Title = "Build A Package From Rmarkdown File",
-    Description = "Use Rmarkdown First method to build your package. Start your package with documentation. Everything can be set from a Rmarkdown file in your project.",
+    Title = "Hawkes_genomics",
+    Description = "R wrappers to compute spacial correlogram from bed files",
     `Authors@R` = c(
-      person("John", "Doe", email = "john@email.me", role = c("aut", "cre"), comment = c(ORCID = "0000-0000-0000-0000"))
+      person("Laurent", "Modolo", email = "laurent.modolo@ens-lyon.fr", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-7606-4110"))
     )
-  )
+  ),
+  overwrite = T
 )
 # Define License with use_*_license()
-usethis::use_mit_license("John Doe")
+usethis::use_agpl3_license()
 ```
 
 # All-in-one function to deploy publicly on GitHub
@@ -56,7 +57,7 @@ remotes::install_local()
 # README
 usethis::use_readme_rmd()
 # Code of Conduct
-usethis::use_code_of_conduct("contact@fake.com")
+usethis::use_code_of_conduct("laurent.modolo@ens-lyon.fr")
 # NEWS
 usethis::use_news_md()
 ```
@@ -97,6 +98,9 @@ gitlabr::use_gitlab_ci(type = "check-coverage-pkgdown")
 ```{r, eval=FALSE}
 # Simulate package installation
 pkgload::load_all()
+
+# Generate the package main functions and vignette
+fusen::inflate_all()
 
 # Generate documentation and deal with dependencies
 attachment::att_amend_desc()

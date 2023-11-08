@@ -1,0 +1,17 @@
+Package: hawkes.genomics
+Title: Hawkes_genomics
+Version: 0.0.0.9000
+Authors@R: 
+    person("Laurent", "Modolo", , "laurent.modolo@ens-lyon.fr", role = c("aut", "cre"),
+           comment = c(ORCID = "0000-0002-7606-4110"))
+Description: R wrappers to compute spacial correlogram from bed files.
+License: AGPL (>= 3)
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: 
+    knitr
+Config/fusen/version: 0.5.2
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.2.3

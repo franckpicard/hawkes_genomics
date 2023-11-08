@@ -9,7 +9,8 @@ editor_options:
 <!-- Store every call to library() that you need to explore your functions -->
 
 ```{r development, include=FALSE}
-library(testthat)
+library(parallel)
+library(bedr)
 ```
 
 <!--
@@ -20,187 +21,630 @@ If it is the first time you use {fusen}, after 'description', you can directly r
 
 ```{r development-load}
 # Load already included functions if relevant
-pkgload::load_all(export_all = FALSE)
-```
-
-# Include some data examples in your package
-
-<!-- 
- Store your dataset in a directory named "inst/" at the root of your project.
- Use it for your tests in this Rmd thanks to `pkgload::load_all()` to make it available
-and `system.file()` to read it in your examples.
-
-- There already is a dataset in the "inst/" directory to be used in the examples below
--->
-
-```{r development-dataset}
-# Run all this chunk in the console directly
-# There already is a dataset in the "inst/" directory
-# Make the dataset file available to the current Rmd during development
-pkgload::load_all(path = here::here(), export_all = FALSE)
-
-# You will be able to read your example data file in each of your function examples and tests as follows - see chunks below
-datafile <- system.file("nyc_squirrels_sample.csv", package = "hawkes.genomics")
-nyc_squirrels <- read.csv(datafile, encoding = "UTF-8")
-
-nyc_squirrels
+# pkgload::load_all(export_all = FALSE)
 ```
 
 
-# The first function of the package: Calculate the median of a vector
+# Functions
 
-<!--
-Create a chunk for the core of the function
-
-- The chunk needs to be named `function` at least
-- It contains the code of a documented function
-- The chunk can also be named `function-my_median` to make it easily
-findable in your Rmd
-- Let the `@examples` part empty, and use the next `examples` chunk instead to present reproducible examples
-
-After inflating the template
-
--  This function code will automatically be added in a new file in the "R/" directory
--->
-
-```{r function}
+```{r function-compute_hawkes_overlap}
 #' My median
 #'
 #' @param x Vector of Numeric values
-#' @inheritParams stats::median
 #'
 #' @return
 #' Median of vector x
 #' @export
 #'
 #' @examples
-my_median <- function(x, na.rm = TRUE) {
-  if (!is.numeric(x)) {stop("x should be numeric")}
-  stats::median(x, na.rm = na.rm)
+compute_hawkes_overlap <- function(
+    K, delta, kernel, processes, path_data, path_results, ofile_prefix){
+  if (!is.numeric(K)) {stop("K should be numeric")}
+  
+  files.regions.in <- paste(
+    path_data, "/", processes, "_preprocessed.bed", sep = ""
+  )
+  
+  file.option <- paste(
+    rep(" -f", length(files.regions.in)), files.regions.in, collapse = ""
+  )
+  file.out.hawkes <- paste(
+    path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
+    "_kernel_", kernel, ".txt", sep = ""
+  )
+  command <- paste(
+    path_soft, " ", file.option, " -dump-intermediate-values -histogram ",
+    K, " ", delta, " -kernel ", kernel, " -lambda 1 > ", file.out.hawkes,
+    sep = ""
+  )
+  system(command)
+  
+  file.option <- paste(
+    rep(" -b", length(files.regions.in)), files.regions.in, collapse = ""
+  )
+  file.out.hawkes <- paste(
+    path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
+    "_kernel_", kernel, ".txt", sep = ""
+  )
+  command <- paste(
+    path_soft, " ", file.option, " -dump-intermediate-values -histogram ",
+    K, " ", delta, " -kernel ", kernel, " -lambda 1 > ", file.out.hawkes,
+    sep = ""
+  )  
+  system(command)
 }
 ```
 
-<!--
-Create a chunk with an example of use for your function
 
-- The chunk needs to be named `examples` at least
-- It contains working examples of your function
-- The chunk is better be named `examples-my_median` to be handled
-correctly when inflated as a vignette
-
-After inflating the template
-
--  This example will automatically be added in the '@examples' part of our function above in the "R/" directory
-- This example will automatically be added in the vignette created from this Rmd template
--->
-
-```{r examples}
-my_median(1:12)
-
-# Example with your dataset in "inst/"
-datafile <- system.file("nyc_squirrels_sample.csv", package = "hawkes.genomics")
-nyc_squirrels <- read.csv(datafile, encoding = "UTF-8")
-# Apply my function
-my_median(nyc_squirrels[,"hectare_squirrel_number"])
-```
-
-<!--
-Create a chunk with a test of use for your function
-
-- The chunk needs to be named `tests` at least
-- It contains working tests of your function
-- The chunk is better be named `tests-my_median` to be handled
-correctly when inflated as a vignette
-
-After inflating the template
-
--  This test code will automatically be added in the "tests/testthat/" directory
--->
-
-```{r tests}
-test_that("my_median works properly and show error if needed", {
-  expect_true(my_median(1:12) == 6.5)
-  expect_error(my_median("text"))
-})
-
-# Test with your dataset in "inst/"
-datafile <- system.file("nyc_squirrels_sample.csv", package = "hawkes.genomics")
-nyc_squirrels <- read.csv(datafile, encoding = "UTF-8")
-# Apply test on my function
-test_that("my_median works properly with internal dataset", {
-  expect_equal(my_median(nyc_squirrels[,"hectare_squirrel_number"]), 3)
-})
-```
-
-# Calculate the mean of a vector
-
-<!--
-There can be other functions, examples and tests in your flat template.
-Each of them will be inflated in a different file, provided that there is a level-1 or level-2 section title to separate from previous functions.
--->
-
-## Use sub-functions in the same chunk
-
-```{r function-my_other_median}
-#' My Other median
+```{r function-getparam_overlap}
+#' getparam_overlap
 #'
-#' @param x Vector of Numeric values
-#' @inheritParams stats::median
+#' @param M 
+#' @param K
+#' @param ofile
+#' @param normalize
 #'
 #' @return
 #' Median of vector x
 #' @export
 #'
 #' @examples
-my_other_median <- function(x, na.rm = TRUE) {
-  if (!is.numeric(x)) {stop("x should be numeric")}
-  sub_median(x, na.rm =na.rm)
+getparam_overlap <- function(M, K, ofile, normalize = FALSE) {
+  # les colonnes sont en m
+  Res <- scan(ofile, n = (M * M * K + M), what = "character", skip = 1)
+  
+  Res <- t(matrix(as.numeric(Res), nrow = M, ncol = M * K + 1))
+  nu  <- Res[1,]
+  Res <- Res[-1,]
+  
+  ss <- seq(1, M * K, by = K)
+  ee <- c((ss - 1)[2:M], M * K)
+  a <- array(data = NA, dim = c(M, M, K))
+  for (m in 1:M) {
+    for (ell in 1:M) {
+      a[m, ell,] <-
+        Res[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
+    }
+  }
+  if (normalize) {
+    for (m in 1:M) {
+      for (ell in 1:M) {
+        a[m, ell,] <- a[m, ell,] / nu[m]
+      }
+    }
+  }
+  return(a)
 }
+```
 
-#' Core of the median not exported
-#' @param x Vector of Numeric values
-#' @inheritParams stats::median
-sub_median <- function(x, na.rm = TRUE) {
-  stats::median(x, na.rm)
+```{r function-results_hawkes_overlap}
+#' getparam_overlap
+#'
+#' @param K
+#' @param delta 
+#' @param kernel 
+#' @param processes
+#' @param path_data
+#' @param path_results
+#' @param ofile_prefix
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+results_hawkes_overlap = function(
+    K, delta, kernel, processes, path_data, path_results, ofile_prefix){  
+  M <- length(processes)
+  af <- getparam_overlap(
+    M, K, paste(
+      path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
+      "_kernel_", kernel, ".txt", sep = ""
+    ),
+    normalize = FALSE
+  )
+  ab <- getparam_overlap(
+    M, K, paste(
+      path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
+      "_kernel_", kernel, ".txt", sep = ""
+    ),
+    normalize = FALSE
+  )
+  a <- merge_fb(af, ab)
+  return(a)
 }
 ```
 
-```{r examples-my_other_median}
-my_other_median(1:12)
+```{r function-compute_hawkes_histogram}
+#' getparam_overlap
+#'
+#' @param K
+#' @param delta 
+#' @param kernel 
+#' @param processes
+#' @param path_data
+#' @param path_results
+#' @param ofile_prefix
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+compute_hawkes_histogram = function(
+    K, delta, kernel, processes, path_data, path_results, ofile_prefix){
+  files.regions.in <- paste(
+    path_data, "/", processes, "_preprocessed.bed", sep = ""
+  )
+  file.option <- paste(
+    rep(" -f", length(files.regions.in)), files.regions.in, collapse = ""
+  )
+  file.out.hawkes <- paste(
+    path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
+    "_kernel_", kernel, ".txt", sep = ""
+  )
+  command <- paste(
+    path_soft, " ", file.option, " -histogram ", K, " ", delta, " -kernel ",
+    kernel, " -lambda 1 > ", file.out.hawkes, sep = ""
+  )
+  system(command)
+  
+  file.option <- paste(
+    rep(" -b", length(files.regions.in)), files.regions.in, collapse = "")
+  file.out.hawkes <- paste(
+    path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
+    "_kernel_", kernel, ".txt", sep = ""
+  )
+  command <- paste(
+    path_soft, " ", file.option, " -histogram ", K, " ", delta, " -kernel ",
+    kernel, " -lambda 1 > ", file.out.hawkes, sep = ""
+  )
+  system(command)
+}
 ```
 
-```{r tests-my_other_median}
-test_that("my_median works properly and show error if needed", {
-  expect_true(my_other_median(1:12) == 6.5)
-  expect_error(my_other_median("text"))
-})
+```{r function-results_hawkes_histogram}
+#' getparam_overlap
+#'
+#' @param K
+#' @param delta 
+#' @param kernel 
+#' @param processes
+#' @param path_data
+#' @param path_results
+#' @param ofile_prefix
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+results_hawkes_histogram = function(
+    K, delta, kernel, processes, path_data, path_results, ofile_prefix) {
+  af <- getparam(
+    paste(
+      path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
+      "_kernel_", kernel, ".txt", sep = ""
+    ),
+    normalize = TRUE
+  )
+  ab <- getparam(
+    paste(
+      path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
+      "_kernel_", kernel, ".txt", sep = ""
+    ),
+    normalize = TRUE
+  )
+  a <- merge_fb(af, ab)
+  return(a)
+}
 ```
 
-<!--
-# There can be development actions
-
-Create a chunk with 'development' actions
-
-- The chunk needs to be named `development` or `dev`
-- It contains functions that are used for package development only
-- Note that you may want to store most of these functions in the 0-dev_history.Rmd file
-
-These are only included in the present flat template file, their content will not be part of the package anywhere else.
--->
-
-```{r development-inflate, eval=FALSE}
-# Keep eval=FALSE to avoid infinite loop in case you hit the knit button
-# Execute in the console directly
-fusen::inflate(flat_file = "dev/flat_first.Rmd", vignette_name = "Get started")
+```{r function-df2bedr}
+#' getparam_overlap
+#'
+#' @param df 
+#' @param check.valid (default: FALSE) 
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+df2bedr <- function(df, check.valid = FALSE) {
+  ll <- unique(paste(df[, 1], paste(df[, 2], df[, 3], sep = "-"), sep = ":"))
+  bedr.sort.region(ll, check.valid = check.valid)
+}
 ```
 
+## get region from bed
+```{r function-get_regions_from_bed}
+#' getparam_overlap
+#'
+#' @param dd 
+#' @param maxlag
+#' @param check.valid (default: FALSE) 
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+get_regions_from_bed <- function(dd, maxlag, check.valid = FALSE, ncore = 1) {
+  # full <- mclapply(
+  full <- lapply(
+    dd, df2bedr,
+  )
+    # mc.cores = ncore)
+  full <- unlist(full)
+  full <- bedr.sort.region(full, check.valid = check.valid)
+  full <- convert2bed(full, check.valid = check.valid)
+  minocc <- 1
+  chrlist <- unique(full$chr)
+  
+  # RR <- mclapply(
+  RR <- lapply(
+    chrlist,
+    FUN = function(chr, full = full, maxlag = maxlag, minocc = minocc) {
+      df <- full[full[, 1] == chr, ]
+      u <- maxlag
+      lag <- 1
+      chrsize <- max(df[, 3]) - min(df[, 2]) + u
+      ss <- seq(min(df[, 2]), chrsize, by = u / lag)
+      ee <- seq(min(df[, 2]) + u - 1, chrsize + u, by = u / lag)
+      hh <- which(ss < (chrsize - u))
+      ss <- ss[hh]
+      ee <- ee[1:length(ss)]
+      ws <- ss
+      we <- ee
+      cov.bed <- paste(chr, paste(ws, we, sep = "-"), sep = ":")
+      fullchr.bed <- df2bedr(df)
+      inter <- bedr(
+        input = list(a = cov.bed, b = fullchr.bed),
+        method = "intersect",
+        params = "-loj -header",
+        check.valid = check.valid
+      )
+      inter <- inter[inter$V4 != ".", ]
+      inter <- inter[
+        !(inter$index %in% names(which(table(inter$index) <= minocc))), 
+      ]
+      return(unique(inter$index))
+    },
+    # mc.cores = ncore,
+    full = full, maxlag = maxlag, minocc = minocc
+  )
+  
+  RR <- bedr.merge.region(unlist(RR), distance = 1, check.valid = check.valid)
+  
+  return(RR)
+}
+```
 
-# Inflate your package
+```{r function-getparam}
+#' getparam_overlap
+#'
+#' @param ofile 
+#' @param normalize (default: FALSE) 
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+getparam <- function(ofile, normalize = FALSE) {
+  # les colonnes sont en m
+  Res <- read.table(ofile)
+  nu <- unlist(Res[1, ])
+  Res <- Res[-1, ]
+  M <- ncol(Res)
+  ss <- seq(1, M * K, by = K)
+  ee <- c((ss - 1)[2:M], M * K)
+  a <- array(data = NA, dim = c(M, M, K))
+  for (m in 1:M) {
+    for (ell in 1:M) {
+      a[m, ell, ] <- Res[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
+    }
+  }
+  if (normalize) {
+    for (m in 1:M) {
+      for (ell in 1:M) {
+        a[m, ell, ] <- a[m, ell, ] / nu[m]
+      }
+    }
+  }
+  return(a)
+}
+```
 
-You're one inflate from paper to box.
-Build your package from this very Rmd using `fusen::inflate()`
+```{r function-merge_fb}
+#' getparam_overlap
+#'
+#' @param af 
+#' @param ab
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+merge_fb <- function(af, ab) {
+  K <- dim(af)[3]
+  M <- dim(af)[1]
+  aa <- array(data = NA, dim = c(M, M, 2 * K))
+  for (m in 1:M) {
+    for (ell in 1:M) {
+      aa[m, ell, ] <- c(ab[m, ell, K:1], af[m, ell, 1:K])
+    }
+  }
+  return(aa)
+}
+```
 
-- Verify your `"DESCRIPTION"` file has been updated
-- Verify your function is in `"R/"` directory
-- Verify your test is in `"tests/testthat/"` directory
-- Verify this Rmd appears in `"vignettes/"` directory
+```{r function-W}
+#' getparam_overlap
+#'
+#' @param x
+#' @param eta
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+W <- function(x, eta){
+  1 * (abs(x) <= eta) / eta
+}
+```
+
+```{r function-W}
+#' getparam_overlap
+#'
+#' @param a
+#' @param K
+#' @param delta
+#' @param eta_m 
+#' @param eta_ell 
+#' 
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+hw <- function(a, K, delta, eta_m, eta_ell) {
+  w_ell <- sapply(
+    1:(2 * K * delta),
+    FUN = function(x) {
+      W(x, eta_ell)
+    }
+  )
+  w_m <- sapply(
+    1:(2 * K * delta),
+    FUN = function(x) {
+      W(x, eta_m)
+    }
+  )
+  hh <- rep(a, each = delta)
+  convolve(w_ell, convolve(w_m, hh))
+}
+```
+
+# Example
+
+We load plotting packages
+
+```{r example-load_package}
+rm(list = ls())
+library(ggplot2)
+library(grid)
+library(gridExtra)
+library(RColorBrewer)
+library(ggpubr)
+```
+
+set ggplot theme
+
+```{r example-set_theme}
+mytheme<- function(){
+  theme(
+    legend.title      = element_blank(),
+    legend.background = element_blank(),
+    legend.text       = element_text(size=10),
+    legend.key.size   = unit(0.5,"cm"),
+    axis.text.x       = element_text(size = 8,angle = 0,hjust=0.5,vjust=0.5),    
+    axis.title.x      = element_text(size=8),
+    axis.title.y      = element_blank(),
+    axis.text.y       = element_text(size=8,hjust=0.5),
+    plot.margin       = unit(rep(0.2,4), "lines"),
+    panel.background  = element_rect(fill=NA,color="black"),
+    #strip.background  = element_rect(fill="white",color="black"),
+    strip.background = element_blank(),
+    panel.border      = element_rect(fill = NA, color = NA),
+    strip.text        = element_text(size=8),
+    plot.title        = element_text(hjust=0.5),
+    strip.text.x = element_text(size = 8),
+    strip.text.y = element_text(size = 8),
+    
+  )
+}
+```
+
+Load the data
+
+```{r development-dataset}
+data_oris <- system.file("extdata/all_oris_human_hg19_H9_merged.bed", package = "hawkes.genomics")
+data_oris <- read.csv(data_oris, encoding = "UTF-8")
+data_cgi <- system.file("extdata/CGI-hg19.bed", package = "hawkes.genomics")
+data_cgi <- read.csv(data_cgi, encoding = "UTF-8")
+data_g4 <- system.file("extdata/G4.bed", package = "hawkes.genomics")
+data_g4 <- read.csv(data_g4, encoding = "UTF-8")
+```
+
+# load Cecile data
+```{r load_cecile_data}
+Sys.setenv(PATH=paste0(Sys.getenv("PATH"), ":", getwd(), "/src/hawkes/:", getwd(), "/src/bedtools/bin/"))
+enh  = read.table(system.file("extdata/enhancer.bed", package = "hawkes.genomics"))
+prom  = read.table(system.file("extdata/coding_prom.bed", package = "hawkes.genomics"))
+sin3  = read.table(system.file("extdata/sin3peaks.bed", package = "hawkes.genomics"))
+
+enh[enh[,1]=="chrI",1]   = "chr1"
+enh[enh[,1]=="chrII",1]  = "chr2"
+enh[enh[,1]=="chrIII",1] = "chr3"
+enh[enh[,1]=="chrIV",1]  = "chr4"
+enh[enh[,1]=="chrV",1]   = "chr5"
+
+sin3[sin3[,1]=="chrI",1]   = "chr1"
+sin3[sin3[,1]=="chrII",1]  = "chr2"
+sin3[sin3[,1]=="chrIII",1] = "chr3"
+sin3[sin3[,1]=="chrIV",1]  = "chr4"
+sin3[sin3[,1]=="chrV",1]   = "chr5"
+
+prom[prom[,1]=="chrI",1]   = "chr1"
+prom[prom[,1]=="chrII",1]  = "chr2"
+prom[prom[,1]=="chrIII",1] = "chr3"
+prom[prom[,1]=="chrIV",1]  = "chr4"
+prom[prom[,1]=="chrV",1]   = "chr5"
+
+maxlag    = 1e5
+
+dd        = list(enh, prom, sin3)
+names(dd) = c("enh", "prom", "sin3")
+regions   = get_regions_from_bed(dd, maxlag, check.valid = FALSE)
+
+z       = enh
+z.bedr  = df2bedr(z)
+z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
+write.table(
+  convert2bed(z.bedr),
+  file = "results/enh_preprocessed.bed",
+  quote = F,
+  col.names = F,
+  row.names = F,
+  sep = "\t"
+)
+
+z       = prom
+z.bedr  = df2bedr(z)
+z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
+write.table(
+  convert2bed(z.bedr),
+  file = "results/prom_preprocessed.bed",
+  quote = F,
+  col.names = F,
+  row.names = F,
+  sep = "\t"
+)
+
+z       = sin3
+z.bedr  = df2bedr(z)
+z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
+write.table(
+  convert2bed(z.bedr),
+  file = "results/sin3_preprocessed.bed",
+  quote = F,
+  col.names = F,
+  row.names = F,
+  sep = "\t"
+)
+```
+
+```{r analyse_cecile_data}
+path_data    = "inst/extdata/"
+path_results = "results"
+path_soft    = "src/hawkes"
+
+eta    = c(1400, 1, 560)
+K      = 10
+delta  = 10000
+kernel = "heterogeneous_interval"
+
+x  = c(1:(K * delta))
+x  = c(-x[length(x):1], x)
+
+compute_hawkes_histogram(
+  K,
+  delta,
+  kernel,
+  processes    = c("enh", "prom", "sin3"),
+  path_data    = path_data,
+  path_results = path_results,
+  ofile_prefix = "hawkes_histogram"
+)
+
+a = results_hawkes_histogram(
+  K,
+  delta,
+  kernel,
+  processes    = c("enh", "prom", "sin3"),
+  path_data    = path_data,
+  path_results = path_results,
+  ofile_prefix = "hawkes_histogram"
+)
+
+pp = c("enh", "prom", "sin3")
+# ww = mclapply(
+ww = lapply(
+  1:3,
+  FUN = function(i) {
+    # mclapply(
+    lapply(
+      1:3,
+      FUN = function(j) {
+        hh = hw(a[i, j, ] / sqrt(delta), K, delta, eta[i], eta[j])
+        data.frame(
+          h = hh[seq(1, length(x), by = 100)],
+          x = x[seq(1, length(x), by = 100)],
+          pp1 = pp[i],
+          pp2 = pp[j]
+        )
+      }
+    )
+  }
+)
+ww = Reduce("rbind", Reduce("rbind", ww))
+
+
+gg = list()
+h  = 0
+for (Fi in  c("enh", "prom", "sin3")) {
+  for (Fj in  c("enh", "prom", "sin3")) {
+    h       = h + 1
+    gg[[h]] = ggplot(ww[(ww$pp1 == Fi) &
+                          (ww$pp2 == Fj), ], aes(
+                            x = x / 1000,
+                            y = h,
+                            color = method
+                          )) +
+      geom_vline(xintercept = 0,
+                 color = "gray",
+                 size = 0.5) + geom_line(color = "black") +
+      xlab("position kb") + ylab("") + xlab("") +
+      mytheme()
+  }
+}
+gg[[1]] = gg[[1]] + ggtitle(expression("enhancer" %->% "enhancer | prom, sin3"))
+gg[[2]] = gg[[2]] + ggtitle(expression("prom"  %->% "enhancer | sin3"))
+gg[[3]] = gg[[3]] + ggtitle(expression("sin3" %->% "enhancer | prom")) + geom_hline(yintercept =
+                                                                                      0,
+                                                                                    color = "gray",
+                                                                                    size = 0.5)
+gg[[4]] = gg[[4]] + ggtitle(expression("enhancer" %->% "prom | sin3"))
+gg[[5]] = gg[[5]] + ggtitle(expression("prom" %->%  "prom | enhancer,sin3"))
+gg[[6]] = gg[[6]] + ggtitle(expression("sin3" %->% "prom | enhancer")) + geom_hline(yintercept =
+                                                                                      0,
+                                                                                    color = "gray",
+                                                                                    size = 0.5)
+gg[[7]] = gg[[7]] + ggtitle(expression("enhancer" %->% "sin3 | prom")) + geom_hline(yintercept =
+                                                                                      0,
+                                                                                    color = "gray",
+                                                                                    size = 0.5)
+gg[[8]] = gg[[8]] + ggtitle(expression("prom" %->%  "sin3 | enhancer")) + geom_hline(yintercept =
+                                                                                       0,
+                                                                                     color = "gray",
+                                                                                     size = 0.5)
+gg[[9]] = gg[[9]] + ggtitle(expression("sin3" %->% "sin3 | enhancer,prom")) + geom_hline(yintercept =
+                                                                                           0,
+                                                                                         color = "gray",
+                                                                                         size = 0.5)
+gg = grid.arrange(gg[[1]], gg[[2]], gg[[3]], gg[[4]], gg[[5]], gg[[6]], gg[[7]], gg[[8]], gg[[9]])
+```

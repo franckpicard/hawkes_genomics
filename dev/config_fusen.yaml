@@ -1,0 +1,13 @@
+flat_first.Rmd:
+  path: dev/flat_first.Rmd
+  state: active
+  R: R/compute_hawkes_overlap.R
+  tests: []
+  vignettes: vignettes/get-started.Rmd
+  inflate:
+    flat_file: dev/flat_first.Rmd
+    vignette_name: Get started
+    open_vignette: true
+    check: true
+    document: true
+    overwrite: ask
