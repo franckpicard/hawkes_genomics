@@ -1,3 +1,6 @@
 ^renv$
 ^renv\.lock$
 ^dev$
+^LICENSE\.md$
+^hawkes_genomics\.Rproj$
+^\.Rproj\.user$
