@@ -1,9 +1,5 @@
-all: hawkes/hawkes bedtools/bedtools
+all: hawkes/hawkes
 
 hawkes/hawkes: hawkes/Makefile
 	cd hawkes \
-	&& make
-
-bedtools/bedtools: bedtools/Makefile
-	cd bedtools \
 	&& make
