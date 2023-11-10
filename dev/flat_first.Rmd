@@ -397,7 +397,7 @@ W <- function(x, eta){
 }
 ```
 
-```{r function-W}
+```{r function-hw}
 #' getparam_overlap
 #'
 #' @param a
@@ -434,7 +434,6 @@ hw <- function(a, K, delta, eta_m, eta_ell) {
 We load plotting packages
 
 ```{r example-load_package}
-rm(list = ls())
 library(ggplot2)
 library(grid)
 library(gridExtra)
@@ -471,7 +470,7 @@ mytheme<- function(){
 
 Load the data
 
-```{r development-dataset}
+```{r development-dataset, eval = F}
 data_oris <- system.file("extdata/all_oris_human_hg19_H9_merged.bed", package = "hawkes.genomics")
 data_oris <- read.csv(data_oris, encoding = "UTF-8")
 data_cgi <- system.file("extdata/CGI-hg19.bed", package = "hawkes.genomics")
@@ -483,9 +482,12 @@ data_g4 <- read.csv(data_g4, encoding = "UTF-8")
 # load Cecile data
 ```{r load_cecile_data}
 Sys.setenv(PATH=paste0(Sys.getenv("PATH"), ":", getwd(), "/src/hawkes/:", getwd(), "/src/bedtools/bin/"))
-enh  = read.table(system.file("extdata/enhancer.bed", package = "hawkes.genomics"))
-prom  = read.table(system.file("extdata/coding_prom.bed", package = "hawkes.genomics"))
-sin3  = read.table(system.file("extdata/sin3peaks.bed", package = "hawkes.genomics"))
+# enh  = read.table(system.file("extdata/enhancer.bed", package = "hawkes.genomics"))
+# prom  = read.table(system.file("extdata/coding_prom.bed", package = "hawkes.genomics"))
+# sin3  = read.table(system.file("extdata/sin3peaks.bed", package = "hawkes.genomics"))
+enh <- read.table("inst/extdata/enhancer.bed")
+prom <- read.table("inst/extdata/coding_prom.bed")
+sin3 <- read.table("inst/extdata/sin3peaks.bed")
 
 enh[enh[,1]=="chrI",1]   = "chr1"
 enh[enh[,1]=="chrII",1]  = "chr2"
