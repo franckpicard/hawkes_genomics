@@ -5,19 +5,10 @@ editor_options:
   chunk_output_type: console
 ---
 
-<!-- Run this 'development' chunk -->
-<!-- Store every call to library() that you need to explore your functions -->
-
 ```{r development, include=FALSE}
+library(tidyverse)
 library(parallel)
-library(bedr)
 ```
-
-<!--
- You need to run the 'description' chunk in the '0-dev_history.Rmd' file before continuing your code there.
-
-If it is the first time you use {fusen}, after 'description', you can directly run the last chunk of the present file with inflate() inside.
---> 
 
 ```{r development-load}
 # Load already included functions if relevant
@@ -26,6 +17,84 @@ If it is the first time you use {fusen}, after 'description', you can directly r
 
 
 # Functions
+
+## preprocess_bed
+
+```{r function-preprocess_bed}
+
+#' preprocess_bed preprocess bed file to remove windows of size maxlag for chich
+#' there is no signal or only signal in one sample
+#'
+#' @param files a vector of bed files path
+#' @param names (default: files) a list of names for the sample
+#' @param maxlag (default: 1e5) the size of the windows
+#' @param prefix (default: "clean_") the prefix of the preprocessed bed file
+#' @param outdir (default: "./") path for the preprocessed bed files
+#'
+#' @return
+#' save a list of preprocessed bed files 
+#' @export
+#'
+#' @examples
+#' preprocess_bed(
+#'   files = c(
+#'     "inst/extdata/enhancer.bed",
+#'     "inst/extdata/coding_prom.bed",
+#'     "inst/extdata/sin3peaks.bed"
+#'   ),
+#'   names = c("enhancer", "prom", "sin3"),
+#' )
+preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_", outdir = "./") {
+  tibble::tibble(
+    files = files,
+    names = names
+  ) %>% 
+    dplyr::mutate(
+      bed = purrr::map(files, function(path){
+          vroom::vroom(
+            path,
+            col_names = c("chr", "start", "stop"),
+            col_types = list(chr = "c", start = "i", stop = "i"),
+            col_select = c("chr", "start", "stop"),
+          )
+      })
+    ) %>%
+  tidyr::unnest(cols = c(bed)) %>% 
+  dplyr::group_by(chr) %>% 
+  dplyr::arrange(start, stop, .by_group = T) %>% 
+  dplyr::mutate(
+    window = purrr::pmap_int(
+      list(names, start, stop), function(names, start, stop) {
+        min(start) %/% maxlag + 1
+      })
+  ) %>% 
+  dplyr::group_by(chr, window) %>% 
+  dplyr::mutate(
+    count = length(levels(as.factor(names))),
+  ) %>% 
+  filter(count > 1) %>% 
+  group_by(files) %>% 
+  select(files, chr, start, stop) %>% 
+  nest(data = c(chr, start, stop)) %>% 
+  dplyr::mutate(
+    path = purrr::map2(files, data, function(path, data) {
+      path <- stringr::str_split(path, "/")[[1]]
+      path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
+      vroom::vroom_write(
+        data,
+        file = path,
+        delim = "\t",
+        col_names = F,
+        quote = "none"
+      )
+      return(path)
+    })
+  ) %>% 
+  unnest(path)
+}
+```
+
+## compute_hawkes_overlap
 
 ```{r function-compute_hawkes_overlap}
 #' My median
@@ -75,6 +144,7 @@ compute_hawkes_overlap <- function(
 }
 ```
 
+## getparam_overlap
 
 ```{r function-getparam_overlap}
 #' getparam_overlap
@@ -90,7 +160,7 @@ compute_hawkes_overlap <- function(
 #'
 #' @examples
 getparam_overlap <- function(M, K, ofile, normalize = FALSE) {
-  # les colonnes sont en m
+  # les colonnes sont en m
   Res <- scan(ofile, n = (M * M * K + M), what = "character", skip = 1)
   
   Res <- t(matrix(as.numeric(Res), nrow = M, ncol = M * K + 1))
@@ -117,8 +187,10 @@ getparam_overlap <- function(M, K, ofile, normalize = FALSE) {
 }
 ```
 
+## results_hawkes_overlap
+
 ```{r function-results_hawkes_overlap}
-#' getparam_overlap
+#' results_hawkes_overlap
 #'
 #' @param K
 #' @param delta 
@@ -155,8 +227,10 @@ results_hawkes_overlap = function(
 }
 ```
 
+## compute_hawkes_histogram
+
 ```{r function-compute_hawkes_histogram}
-#' getparam_overlap
+#' compute_hawkes_histogram
 #'
 #' @param K
 #' @param delta 
@@ -201,10 +275,34 @@ compute_hawkes_histogram = function(
   )
   system(command)
 }
+
+path_data    = "inst/extdata/"
+path_results = "results"
+path_soft    = "src/hawkes"
+
+eta    = c(1400, 1, 560)
+K      = 10
+delta  = 10000
+kernel = "heterogeneous_interval"
+
+x  = c(1:(K * delta))
+x  = c(-x[length(x):1], x)
+
+compute_hawkes_histogram(
+  K,
+  delta,
+  kernel,
+  processes    = c("enh", "prom", "sin3"),
+  path_data    = path_data,
+  path_results = path_results,
+  ofile_prefix = "hawkes_histogram"
+)
 ```
 
+## results_hawkes_histogram
+
 ```{r function-results_hawkes_histogram}
-#' getparam_overlap
+#' results_hawkes_histogram
 #'
 #' @param K
 #' @param delta 
@@ -240,89 +338,10 @@ results_hawkes_histogram = function(
 }
 ```
 
-```{r function-df2bedr}
-#' getparam_overlap
-#'
-#' @param df 
-#' @param check.valid (default: FALSE) 
-#'
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-df2bedr <- function(df, check.valid = FALSE) {
-  ll <- unique(paste(df[, 1], paste(df[, 2], df[, 3], sep = "-"), sep = ":"))
-  bedr.sort.region(ll, check.valid = check.valid)
-}
-```
-
-## get region from bed
-```{r function-get_regions_from_bed}
-#' getparam_overlap
-#'
-#' @param dd 
-#' @param maxlag
-#' @param check.valid (default: FALSE) 
-#'
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-get_regions_from_bed <- function(dd, maxlag, check.valid = FALSE, ncore = 1) {
-  # full <- mclapply(
-  full <- lapply(
-    dd, df2bedr,
-  )
-    # mc.cores = ncore)
-  full <- unlist(full)
-  full <- bedr.sort.region(full, check.valid = check.valid)
-  full <- convert2bed(full, check.valid = check.valid)
-  minocc <- 1
-  chrlist <- unique(full$chr)
-  
-  # RR <- mclapply(
-  RR <- lapply(
-    chrlist,
-    FUN = function(chr, full = full, maxlag = maxlag, minocc = minocc) {
-      df <- full[full[, 1] == chr, ]
-      u <- maxlag
-      lag <- 1
-      chrsize <- max(df[, 3]) - min(df[, 2]) + u
-      ss <- seq(min(df[, 2]), chrsize, by = u / lag)
-      ee <- seq(min(df[, 2]) + u - 1, chrsize + u, by = u / lag)
-      hh <- which(ss < (chrsize - u))
-      ss <- ss[hh]
-      ee <- ee[1:length(ss)]
-      ws <- ss
-      we <- ee
-      cov.bed <- paste(chr, paste(ws, we, sep = "-"), sep = ":")
-      fullchr.bed <- df2bedr(df)
-      inter <- bedr(
-        input = list(a = cov.bed, b = fullchr.bed),
-        method = "intersect",
-        params = "-loj -header",
-        check.valid = check.valid
-      )
-      inter <- inter[inter$V4 != ".", ]
-      inter <- inter[
-        !(inter$index %in% names(which(table(inter$index) <= minocc))), 
-      ]
-      return(unique(inter$index))
-    },
-    # mc.cores = ncore,
-    full = full, maxlag = maxlag, minocc = minocc
-  )
-  
-  RR <- bedr.merge.region(unlist(RR), distance = 1, check.valid = check.valid)
-  
-  return(RR)
-}
-```
+## getparam
 
 ```{r function-getparam}
-#' getparam_overlap
+#' getparam
 #'
 #' @param ofile 
 #' @param normalize (default: FALSE) 
@@ -333,7 +352,7 @@ get_regions_from_bed <- function(dd, maxlag, check.valid = FALSE, ncore = 1) {
 #'
 #' @examples
 getparam <- function(ofile, normalize = FALSE) {
-  # les colonnes sont en m
+  # les colonnes sont en m
   Res <- read.table(ofile)
   nu <- unlist(Res[1, ])
   Res <- Res[-1, ]
@@ -357,8 +376,10 @@ getparam <- function(ofile, normalize = FALSE) {
 }
 ```
 
+## merge_fb
+
 ```{r function-merge_fb}
-#' getparam_overlap
+#' merge_fb
 #'
 #' @param af 
 #' @param ab
@@ -381,8 +402,10 @@ merge_fb <- function(af, ab) {
 }
 ```
 
+## W
+
 ```{r function-W}
-#' getparam_overlap
+#' W
 #'
 #' @param x
 #' @param eta
@@ -397,8 +420,10 @@ W <- function(x, eta){
 }
 ```
 
+## hw
+
 ```{r function-hw}
-#' getparam_overlap
+#' hw
 #'
 #' @param a
 #' @param K
@@ -468,85 +493,16 @@ mytheme<- function(){
 }
 ```
 
-Load the data
-
-```{r development-dataset, eval = F}
-data_oris <- system.file("extdata/all_oris_human_hg19_H9_merged.bed", package = "hawkes.genomics")
-data_oris <- read.csv(data_oris, encoding = "UTF-8")
-data_cgi <- system.file("extdata/CGI-hg19.bed", package = "hawkes.genomics")
-data_cgi <- read.csv(data_cgi, encoding = "UTF-8")
-data_g4 <- system.file("extdata/G4.bed", package = "hawkes.genomics")
-data_g4 <- read.csv(data_g4, encoding = "UTF-8")
-```
-
 # load Cecile data
+
 ```{r load_cecile_data}
-Sys.setenv(PATH=paste0(Sys.getenv("PATH"), ":", getwd(), "/src/hawkes/:", getwd(), "/src/bedtools/bin/"))
-# enh  = read.table(system.file("extdata/enhancer.bed", package = "hawkes.genomics"))
-# prom  = read.table(system.file("extdata/coding_prom.bed", package = "hawkes.genomics"))
-# sin3  = read.table(system.file("extdata/sin3peaks.bed", package = "hawkes.genomics"))
-enh <- read.table("inst/extdata/enhancer.bed")
-prom <- read.table("inst/extdata/coding_prom.bed")
-sin3 <- read.table("inst/extdata/sin3peaks.bed")
-
-enh[enh[,1]=="chrI",1]   = "chr1"
-enh[enh[,1]=="chrII",1]  = "chr2"
-enh[enh[,1]=="chrIII",1] = "chr3"
-enh[enh[,1]=="chrIV",1]  = "chr4"
-enh[enh[,1]=="chrV",1]   = "chr5"
-
-sin3[sin3[,1]=="chrI",1]   = "chr1"
-sin3[sin3[,1]=="chrII",1]  = "chr2"
-sin3[sin3[,1]=="chrIII",1] = "chr3"
-sin3[sin3[,1]=="chrIV",1]  = "chr4"
-sin3[sin3[,1]=="chrV",1]   = "chr5"
-
-prom[prom[,1]=="chrI",1]   = "chr1"
-prom[prom[,1]=="chrII",1]  = "chr2"
-prom[prom[,1]=="chrIII",1] = "chr3"
-prom[prom[,1]=="chrIV",1]  = "chr4"
-prom[prom[,1]=="chrV",1]   = "chr5"
-
-maxlag    = 1e5
-
-dd        = list(enh, prom, sin3)
-names(dd) = c("enh", "prom", "sin3")
-regions   = get_regions_from_bed(dd, maxlag, check.valid = FALSE)
-
-z       = enh
-z.bedr  = df2bedr(z)
-z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
-write.table(
-  convert2bed(z.bedr),
-  file = "results/enh_preprocessed.bed",
-  quote = F,
-  col.names = F,
-  row.names = F,
-  sep = "\t"
-)
-
-z       = prom
-z.bedr  = df2bedr(z)
-z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
-write.table(
-  convert2bed(z.bedr),
-  file = "results/prom_preprocessed.bed",
-  quote = F,
-  col.names = F,
-  row.names = F,
-  sep = "\t"
-)
-
-z       = sin3
-z.bedr  = df2bedr(z)
-z.bedr  = bedr.sort.region(z.bedr, check.valid = FALSE)
-write.table(
-  convert2bed(z.bedr),
-  file = "results/sin3_preprocessed.bed",
-  quote = F,
-  col.names = F,
-  row.names = F,
-  sep = "\t"
+preprocess_bed(
+  files = c(
+    "inst/extdata/enhancer.bed",
+    "inst/extdata/coding_prom.bed",
+    "inst/extdata/sin3peaks.bed"
+  ),
+  names = c("enhancer", "prom", "sin3"),
 )
 ```
 
