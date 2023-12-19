@@ -8,3 +8,4 @@ renv
 *.Rproj
 .Rprofile
 inst/doc
+src/hawkes_bin
