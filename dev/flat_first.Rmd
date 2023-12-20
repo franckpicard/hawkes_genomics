@@ -2,7 +2,7 @@
 title: "flat_first.Rmd for working package"
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r development, include=FALSE}
@@ -18,10 +18,84 @@ library(parallel)
 
 # Functions
 
+## read_bed
+
+```{r function-read_bed}
+#' helper function for preprocess_bed to quickly load bed files
+#'
+#' @param path bed file path
+#'
+#' @return
+#' tibble
+read_bed <- function(path) {
+  vroom::vroom(
+    path,
+    col_names = c("chr", "start", "stop"),
+    col_types = list(chr = "c", start = "i", stop = "i"),
+    col_select = c("chr", "start", "stop"),
+  )
+}
+```
+
+## filter_windows
+
+```{r function-filter_windows}
+#' helper function for preprocess_bed to compute a sliding windows along all
+#' the beds and filter out position present in only one beds file
+#'
+#' @param data a tibble
+#' @param maxlag the size of the windows
+#'
+#' @return
+#' tibble
+filter_windows <- function(data, maxlag) {
+  data %>% 
+    dplyr::group_by(chr) %>% 
+    dplyr::arrange(start, stop, .by_group = T) %>% 
+    dplyr::mutate(
+      window = purrr::pmap_int(
+        list(names, start, stop), function(names, start, stop, max_lag) {
+          min(start) %/% max_lag + 1
+        }, max_lag = maxlag)
+    ) %>% 
+    dplyr::group_by(chr, window) %>% 
+    dplyr::mutate(
+      count = length(levels(as.factor(names))),
+    ) %>% 
+    filter(count > 1) %>% 
+    group_by(files) %>% 
+    select(files, chr, start, stop) %>% 
+    nest(beds = c(chr, start, stop))
+}
+```
+## write_bed
+```{r function-write_bed}
+#' helper function for preprocess_bed to write bed files
+#'
+#' @param path a bed file path
+#' @param data a tibble of bed information
+#' @param outdir the path were to write the results
+#' @param prefix (default: "clean_") the prefix of the preprocessed bed file
+#'
+#' @return
+#' a path
+write_bed <- function(path, data, outdir, prefix = "clean_") {
+  path <- stringr::str_split(path, "/")[[1]]
+  path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
+  vroom::vroom_write(
+    data,
+    file = path,
+    delim = "\t",
+    col_names = F,
+    quote = "none"
+  )
+  return(path)
+}
+```
+
 ## preprocess_bed
 
 ```{r function-preprocess_bed}
-
 #' preprocess_bed preprocess bed file to remove windows of size maxlag for chich
 #' there is no signal or only signal in one sample
 #'
@@ -50,47 +124,14 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_"
     names = names
   ) %>% 
     dplyr::mutate(
-      bed = purrr::map(files, function(path){
-          vroom::vroom(
-            path,
-            col_names = c("chr", "start", "stop"),
-            col_types = list(chr = "c", start = "i", stop = "i"),
-            col_select = c("chr", "start", "stop"),
-          )
-      })
+      bed = purrr::map(files, read_bed)
     ) %>%
   tidyr::unnest(cols = c(bed)) %>% 
-  dplyr::group_by(chr) %>% 
-  dplyr::arrange(start, stop, .by_group = T) %>% 
+  filter_windows(maxlag = maxlag) %>% 
   dplyr::mutate(
-    window = purrr::pmap_int(
-      list(names, start, stop), function(names, start, stop) {
-        min(start) %/% maxlag + 1
-      })
+    preprocess_beds = purrr::map2(files, beds, write_bed, outdir = outdir, prefix = prefix)
   ) %>% 
-  dplyr::group_by(chr, window) %>% 
-  dplyr::mutate(
-    count = length(levels(as.factor(names))),
-  ) %>% 
-  filter(count > 1) %>% 
-  group_by(files) %>% 
-  select(files, chr, start, stop) %>% 
-  nest(data = c(chr, start, stop)) %>% 
-  dplyr::mutate(
-    path = purrr::map2(files, data, function(path, data) {
-      path <- stringr::str_split(path, "/")[[1]]
-      path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
-      vroom::vroom_write(
-        data,
-        file = path,
-        delim = "\t",
-        col_names = F,
-        quote = "none"
-      )
-      return(path)
-    })
-  ) %>% 
-  unnest(path)
+  unnest(preprocess_beds)
 }
 ```
 
@@ -232,71 +273,36 @@ results_hawkes_overlap = function(
 ```{r function-compute_hawkes_histogram}
 #' compute_hawkes_histogram
 #'
-#' @param K
-#' @param delta 
-#' @param kernel 
-#' @param processes
-#' @param path_data
-#' @param path_results
-#' @param ofile_prefix
+#' @param files a vector of bed files path
+#' @param output_file file path for the results
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' @param kernel (default: "heterogeneous_interval") kernel for the computation
 #'
 #' @return
-#' Median of vector x
+#' save a results file
 #' @export
 #'
 #' @examples
-compute_hawkes_histogram = function(
-    K, delta, kernel, processes, path_data, path_results, ofile_prefix){
-  files.regions.in <- paste(
-    path_data, "/", processes, "_preprocessed.bed", sep = ""
-  )
-  file.option <- paste(
-    rep(" -f", length(files.regions.in)), files.regions.in, collapse = ""
-  )
-  file.out.hawkes <- paste(
-    path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
-    "_kernel_", kernel, ".txt", sep = ""
-  )
-  command <- paste(
-    path_soft, " ", file.option, " -histogram ", K, " ", delta, " -kernel ",
-    kernel, " -lambda 1 > ", file.out.hawkes, sep = ""
-  )
-  system(command)
-  
-  file.option <- paste(
-    rep(" -b", length(files.regions.in)), files.regions.in, collapse = "")
-  file.out.hawkes <- paste(
-    path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
-    "_kernel_", kernel, ".txt", sep = ""
-  )
-  command <- paste(
-    path_soft, " ", file.option, " -histogram ", K, " ", delta, " -kernel ",
-    kernel, " -lambda 1 > ", file.out.hawkes, sep = ""
-  )
-  system(command)
+compute_hawkes_histogram <- function(
+    files, output_file, K = 10, delta = 1e4 , kernel = "heterogeneous_interval"){
+  cmd <- c()
+  for (bed in files) {
+    cmd <- c(cmd, paste("-b", bed))
+  }
+  cmd <- c(cmd, paste("-histogram", K, delta))
+  cmd <- c(cmd, paste("-kernel", kernel))
+  cmd <- c(cmd, "-lambda 1")
+  system2(
+    "src/hawkes_bin",
+    cmd,
+    stdout = T
+  ) %>% 
+  textConnection() %>% 
+  read.table(col.names = files) %>% 
+  as.matrix()
 }
 
-path_data    = "inst/extdata/"
-path_results = "results"
-path_soft    = "src/hawkes"
-
-eta    = c(1400, 1, 560)
-K      = 10
-delta  = 10000
-kernel = "heterogeneous_interval"
-
-x  = c(1:(K * delta))
-x  = c(-x[length(x):1], x)
-
-compute_hawkes_histogram(
-  K,
-  delta,
-  kernel,
-  processes    = c("enh", "prom", "sin3"),
-  path_data    = path_data,
-  path_results = path_results,
-  ofile_prefix = "hawkes_histogram"
-)
 ```
 
 ## results_hawkes_histogram
@@ -351,18 +357,17 @@ results_hawkes_histogram = function(
 #' @export
 #'
 #' @examples
-getparam <- function(ofile, normalize = FALSE) {
+getparam <- function(data, normalize = FALSE, K = 10) {
   # les colonnes sont en m
-  Res <- read.table(ofile)
-  nu <- unlist(Res[1, ])
-  Res <- Res[-1, ]
-  M <- ncol(Res)
+  nu <- unlist(data[1, ])
+  Res <- data[-1, ]
+  M <- ncol(data)
   ss <- seq(1, M * K, by = K)
   ee <- c((ss - 1)[2:M], M * K)
   a <- array(data = NA, dim = c(M, M, K))
   for (m in 1:M) {
     for (ell in 1:M) {
-      a[m, ell, ] <- Res[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
+      a[m, ell, ] <- data[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
     }
   }
   if (normalize) {
@@ -452,6 +457,8 @@ hw <- function(a, K, delta, eta_m, eta_ell) {
   hh <- rep(a, each = delta)
   convolve(w_ell, convolve(w_m, hh))
 }
+a[1, 1, ]
+hw(a[1, 1, ] / sqrt(delta), K, delta, eta[1], eta[1])
 ```
 
 # Example
@@ -495,8 +502,9 @@ mytheme<- function(){
 
 # load Cecile data
 
+## preprocess data
 ```{r load_cecile_data}
-preprocess_bed(
+beds <- preprocess_bed(
   files = c(
     "inst/extdata/enhancer.bed",
     "inst/extdata/coding_prom.bed",
@@ -504,13 +512,29 @@ preprocess_bed(
   ),
   names = c("enhancer", "prom", "sin3"),
 )
+beds
+```
+## hawkes computation
+
+```{r compute_hitogram}
+res <- beds$preprocess_beds %>% 
+compute_hawkes_histogram(
+  output_file = "cecile.hist" 
+)
+res
 ```
 
-```{r analyse_cecile_data}
-path_data    = "inst/extdata/"
-path_results = "results"
-path_soft    = "src/hawkes"
+## get params
 
+```{r format_results}
+params <- res %>%
+  getparam()
+params
+```
+
+## plot data
+
+```{r analyse_cecile_data}
 eta    = c(1400, 1, 560)
 K      = 10
 delta  = 10000
@@ -518,26 +542,7 @@ kernel = "heterogeneous_interval"
 
 x  = c(1:(K * delta))
 x  = c(-x[length(x):1], x)
-
-compute_hawkes_histogram(
-  K,
-  delta,
-  kernel,
-  processes    = c("enh", "prom", "sin3"),
-  path_data    = path_data,
-  path_results = path_results,
-  ofile_prefix = "hawkes_histogram"
-)
-
-a = results_hawkes_histogram(
-  K,
-  delta,
-  kernel,
-  processes    = c("enh", "prom", "sin3"),
-  path_data    = path_data,
-  path_results = path_results,
-  ofile_prefix = "hawkes_histogram"
-)
+a = params
 
 pp = c("enh", "prom", "sin3")
 # ww = mclapply(
