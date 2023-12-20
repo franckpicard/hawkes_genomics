@@ -65,6 +65,9 @@ filter_windows <- function(data, maxlag) {
     filter(count > 1) %>% 
     group_by(files) %>% 
     select(files, chr, start, stop) %>% 
+    dplyr::mutate(
+      interval_size = mean(stop - start)
+    ) %>% 
     nest(beds = c(chr, start, stop))
 }
 ```
@@ -103,7 +106,7 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #' @param names (default: files) a list of names for the sample
 #' @param maxlag (default: 1e5) the size of the windows
 #' @param prefix (default: "clean_") the prefix of the preprocessed bed file
-#' @param outdir (default: "./") path for the preprocessed bed files
+#' @param outdir (default: "tempdir()") path for the preprocessed bed files
 #'
 #' @return
 #' save a list of preprocessed bed files 
@@ -118,7 +121,7 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #'   ),
 #'   names = c("enhancer", "prom", "sin3"),
 #' )
-preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_", outdir = "./") {
+preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_", outdir = tempdir()) {
   tibble::tibble(
     files = files,
     names = names
@@ -349,18 +352,14 @@ results_hawkes_histogram = function(
 ```{r function-getparam}
 #' getparam
 #'
-#' @param ofile 
-#' @param normalize (default: FALSE) 
-#'
+#' @param data a matrix of parameters 
 #' @return
 #' Median of vector x
 #' @export
 #'
 #' @examples
-getparam <- function(data, normalize = FALSE, K = 10) {
-  # les colonnes sont en m
-  nu <- unlist(data[1, ])
-  Res <- data[-1, ]
+getparam <- function(data, K = 10) {
+  data <- data[-1, ] # we remove the line corresponding to the nu's
   M <- ncol(data)
   ss <- seq(1, M * K, by = K)
   ee <- c((ss - 1)[2:M], M * K)
@@ -368,13 +367,6 @@ getparam <- function(data, normalize = FALSE, K = 10) {
   for (m in 1:M) {
     for (ell in 1:M) {
       a[m, ell, ] <- data[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
-    }
-  }
-  if (normalize) {
-    for (m in 1:M) {
-      for (ell in 1:M) {
-        a[m, ell, ] <- a[m, ell, ] / nu[m]
-      }
     }
   }
   return(a)
@@ -410,10 +402,10 @@ merge_fb <- function(af, ab) {
 ## W
 
 ```{r function-W}
-#' W
+#' W the uniform kernel of width eta
 #'
-#' @param x
-#' @param eta
+#' @param x vector of data
+#' @param eta witdh of the uniform kernel
 #'
 #' @return
 #' Median of vector x
@@ -428,7 +420,8 @@ W <- function(x, eta){
 ## hw
 
 ```{r function-hw}
-#' hw
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
 #'
 #' @param a
 #' @param K
@@ -454,11 +447,9 @@ hw <- function(a, K, delta, eta_m, eta_ell) {
       W(x, eta_m)
     }
   )
-  hh <- rep(a, each = delta)
+  hh <- rep(a, each = 2 * delta)
   convolve(w_ell, convolve(w_m, hh))
 }
-a[1, 1, ]
-hw(a[1, 1, ] / sqrt(delta), K, delta, eta[1], eta[1])
 ```
 
 # Example
@@ -506,9 +497,9 @@ mytheme<- function(){
 ```{r load_cecile_data}
 beds <- preprocess_bed(
   files = c(
-    "inst/extdata/enhancer.bed",
-    "inst/extdata/coding_prom.bed",
-    "inst/extdata/sin3peaks.bed"
+    "../inst/extdata/enhancer.bed",
+    "../inst/extdata/coding_prom.bed",
+    "../inst/extdata/sin3peaks.bed"
   ),
   names = c("enhancer", "prom", "sin3"),
 )
@@ -521,7 +512,6 @@ res <- beds$preprocess_beds %>%
 compute_hawkes_histogram(
   output_file = "cecile.hist" 
 )
-res
 ```
 
 ## get params
@@ -529,13 +519,12 @@ res
 ```{r format_results}
 params <- res %>%
   getparam()
-params
 ```
 
 ## plot data
 
 ```{r analyse_cecile_data}
-eta    = c(1400, 1, 560)
+eta    = c(1400, 100, 560) # mean interval size for beds
 K      = 10
 delta  = 10000
 kernel = "heterogeneous_interval"
