@@ -174,45 +174,6 @@ compute_hawkes_histogram <- function(
 
 ```
 
-## results_hawkes_histogram
-
-```{r function-results_hawkes_histogram}
-#' results_hawkes_histogram
-#'
-#' @param K
-#' @param delta 
-#' @param kernel 
-#' @param processes
-#' @param path_data
-#' @param path_results
-#' @param ofile_prefix
-#'
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-results_hawkes_histogram = function(
-    K, delta, kernel, processes, path_data, path_results, ofile_prefix) {
-  af <- getparam(
-    paste(
-      path_results, "/", ofile_prefix, "_forward_K_", K, "_delta_", delta,
-      "_kernel_", kernel, ".txt", sep = ""
-    ),
-    normalize = TRUE
-  )
-  ab <- getparam(
-    paste(
-      path_results, "/", ofile_prefix, "_backward_K_", K, "_delta_", delta,
-      "_kernel_", kernel, ".txt", sep = ""
-    ),
-    normalize = TRUE
-  )
-  a <- merge_fb(af, ab)
-  return(a)
-}
-```
-
 ## getparam
 
 ```{r function-getparam}
@@ -239,29 +200,44 @@ getparam <- function(data, K = 10) {
 }
 ```
 
-## merge_fb
+## convolve_to_histogram
 
-```{r function-merge_fb}
-#' merge_fb
+```{r function-convolve_to_histogram}
+#' compute_hawkes_histogram
 #'
-#' @param af 
-#' @param ab
+#' @param res results from compute_hawkes_histogram
+#' @param eta vector of bed interval size means
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
 #'
 #' @return
-#' Median of vector x
+#' save a results file
 #' @export
 #'
 #' @examples
-merge_fb <- function(af, ab) {
-  K <- dim(af)[3]
-  M <- dim(af)[1]
-  aa <- array(data = NA, dim = c(M, M, 2 * K))
-  for (m in 1:M) {
-    for (ell in 1:M) {
-      aa[m, ell, ] <- c(ab[m, ell, K:1], af[m, ell, 1:K])
+convolve_to_histogram <- function(res, eta, K = 10, delta = 1e4) {
+  a <- getparam(res)
+  x <- c(1:(K * delta))
+  x <- c(-x[length(x):1], x)
+  pp <- colnames(res)
+  ww = lapply(
+    1:ncol(res),
+    FUN = function(i) {
+      lapply(
+        1:ncol(res),
+        FUN = function(j, pp = pp, x = x, K = K, delta = delta, eta = eta) {
+          hh = hw(a[i, j, ] / sqrt(delta), K, delta, eta[i], eta[j])
+          data.frame(
+            h = hh[seq(1, length(x), by = 100)],
+            x = x[seq(1, length(x), by = 100)],
+            pp1 = pp[i],
+            pp2 = pp[j]
+          )
+        }, pp = pp, x = x, K = K, delta = delta, eta = eta
+      )
     }
-  }
-  return(aa)
+  )
+  ww = Reduce("rbind", Reduce("rbind", ww))
 }
 ```
 
@@ -380,47 +356,15 @@ compute_hawkes_histogram(
 )
 ```
 
-## get params
-
-```{r format_results}
-params <- res %>%
-  getparam()
-```
-
 ## plot data
 
+
 ```{r analyse_cecile_data}
-eta    = c(1400, 100, 560) # mean interval size for beds
-K      = 10
-delta  = 10000
-kernel = "heterogeneous_interval"
 
-x  = c(1:(K * delta))
-x  = c(-x[length(x):1], x)
-a = params
-
-pp = c("enh", "prom", "sin3")
-# ww = mclapply(
-ww = lapply(
-  1:3,
-  FUN = function(i) {
-    # mclapply(
-    lapply(
-      1:3,
-      FUN = function(j) {
-        hh = hw(a[i, j, ] / sqrt(delta), K, delta, eta[i], eta[j])
-        data.frame(
-          h = hh[seq(1, length(x), by = 100)],
-          x = x[seq(1, length(x), by = 100)],
-          pp1 = pp[i],
-          pp2 = pp[j]
-        )
-      }
-    )
-  }
+ww <- convolve_to_histogram(
+  res = res,
+  eta = beds$interval_size
 )
-ww = Reduce("rbind", Reduce("rbind", ww))
-
 
 gg = list()
 h  = 0
