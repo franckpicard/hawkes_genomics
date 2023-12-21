@@ -2,7 +2,7 @@
 title: "flat_first.Rmd for working package"
 output: html_document
 editor_options: 
-  chunk_output_type: inline
+  chunk_output_type: console
 ---
 
 ```{r development, include=FALSE}
@@ -64,7 +64,7 @@ filter_windows <- function(data, maxlag) {
     ) %>% 
     filter(count > 1) %>% 
     group_by(files) %>% 
-    select(files, chr, start, stop) %>% 
+    select(files, names, chr, start, stop) %>% 
     dplyr::mutate(
       interval_size = mean(stop - start)
     ) %>% 
@@ -85,6 +85,7 @@ filter_windows <- function(data, maxlag) {
 write_bed <- function(path, data, outdir, prefix = "clean_") {
   path <- stringr::str_split(path, "/")[[1]]
   path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
+  print(path)
   vroom::vroom_write(
     data,
     file = path,
@@ -121,7 +122,7 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #'   ),
 #'   names = c("enhancer", "prom", "sin3"),
 #' )
-preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_", outdir = tempdir()) {
+preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
   tibble::tibble(
     files = files,
     names = names
@@ -143,7 +144,6 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_"
 #' compute_hawkes_histogram
 #'
 #' @param files a vector of bed files path
-#' @param output_file file path for the results
 #' @param K (default: 10) size of the histogram bins
 #' @param delta (default: 1e4) max range to consider
 #' @param kernel (default: "heterogeneous_interval") kernel for the computation
@@ -154,7 +154,7 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "clean_"
 #'
 #' @examples
 compute_hawkes_histogram <- function(
-    files, output_file, K = 10, delta = 1e4 , kernel = "heterogeneous_interval"){
+    files, names = files, K = 10, delta = 1e4 , kernel = "heterogeneous_interval"){
   cmd <- c()
   for (bed in files) {
     cmd <- c(cmd, paste("-b", bed))
@@ -168,7 +168,7 @@ compute_hawkes_histogram <- function(
     stdout = T
   ) %>% 
   textConnection() %>% 
-  read.table(col.names = files) %>% 
+  read.table(col.names = names) %>% 
   as.matrix()
 }
 
@@ -198,8 +198,101 @@ getparam <- function(data, K = 10) {
   }
   return(a)
 }
+getparam2 <- function(data, K = 10) {
+  res %>% 
+    as_tibble() %>% 
+    dplyr::slice(2:n()) %>% 
+    dplyr::mutate(
+      vs_name = rep(1:ncol(.), each = K)
+    ) %>% 
+    dplyr::mutate(
+      vs_name = levels(as.factor(colnames(.)))[vs_name]
+    ) %>% 
+    tidyr::pivot_longer(cols = !c(vs_name)) %>% 
+    dplyr::relocate(name) %>% 
+    dplyr::arrange(name, vs_name) %>% 
+    group_by(name, vs_name)
+}
 ```
 
+
+## uniform_kernel
+
+```{r function-uniform_kernel}
+#' the uniform kernel of width width 
+#'
+#' @param x vector of data
+#' @param width width of the uniform kernel
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+uniform_kernel <- function(x, width){
+  1 * (abs(x) <= width) / width
+}
+```
+
+## hw
+
+```{r function-hw}
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param a
+#' @param K
+#' @param delta
+#' @param eta_m 
+#' @param eta_ell 
+#' 
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+hw <- function(a, K, delta, eta_m, eta_ell) {
+  w_ell <- sapply(
+    1:(2 * K * delta),
+    FUN = function(x) {
+      uniform_kernel(x, eta_ell)
+    }
+  )
+  w_m <- sapply(
+    1:(2 * K * delta),
+    FUN = function(x) {
+      uniform_kernel(x, eta_m)
+    }
+  )
+  hh <- rep(a, each = 2 * delta)
+  convolve(w_ell, convolve(w_m, hh))
+}
+
+convolve_with_kernel <- function(data, width, K = 10) {
+  getparam2(data, K = K) %>% 
+  dplyr::group_by(name, vs_name) %>% 
+  dplyr::mutate(
+    name_width = purrr::map_dbl(name, function(x, width = width, names = names){
+        width[which(names == x)]
+      }, width = width, names = colnames(data)
+    ),
+    vs_name_width = purrr::map_dbl(vs_name, function(x, width = width, names = names){
+        width[which(names == x)]
+      }, width = width, names = colnames(data)
+    )
+  ) %>% 
+  dplyr::mutate(
+    convolution = purrr::pmap_dbl(
+      list(value, name_width, vs_name_width), function(value, name_width, vs_name_width){
+      value %>% 
+        convolve(name_width) %>% 
+        convolve(vs_name_width)
+    })
+  )
+}
+convolve_with_kernel(res, width = beds$interval_size, K = 10)
+
+```
 ## convolve_to_histogram
 
 ```{r function-convolve_to_histogram}
@@ -238,59 +331,6 @@ convolve_to_histogram <- function(res, eta, K = 10, delta = 1e4) {
     }
   )
   ww = Reduce("rbind", Reduce("rbind", ww))
-}
-```
-
-## W
-
-```{r function-W}
-#' W the uniform kernel of width eta
-#'
-#' @param x vector of data
-#' @param eta witdh of the uniform kernel
-#'
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-W <- function(x, eta){
-  1 * (abs(x) <= eta) / eta
-}
-```
-
-## hw
-
-```{r function-hw}
-#' hw convolution of the h interaction function with the kernel of the 2
-#' processus
-#'
-#' @param a
-#' @param K
-#' @param delta
-#' @param eta_m 
-#' @param eta_ell 
-#' 
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-hw <- function(a, K, delta, eta_m, eta_ell) {
-  w_ell <- sapply(
-    1:(2 * K * delta),
-    FUN = function(x) {
-      W(x, eta_ell)
-    }
-  )
-  w_m <- sapply(
-    1:(2 * K * delta),
-    FUN = function(x) {
-      W(x, eta_m)
-    }
-  )
-  hh <- rep(a, each = 2 * delta)
-  convolve(w_ell, convolve(w_m, hh))
 }
 ```
 
@@ -339,9 +379,9 @@ mytheme<- function(){
 ```{r load_cecile_data}
 beds <- preprocess_bed(
   files = c(
-    "../inst/extdata/enhancer.bed",
-    "../inst/extdata/coding_prom.bed",
-    "../inst/extdata/sin3peaks.bed"
+    "./inst/extdata/enhancer.bed",
+    "./inst/extdata/coding_prom.bed",
+    "./inst/extdata/sin3peaks.bed"
   ),
   names = c("enhancer", "prom", "sin3"),
 )
@@ -350,9 +390,9 @@ beds
 ## hawkes computation
 
 ```{r compute_hitogram}
-res <- beds$preprocess_beds %>% 
-compute_hawkes_histogram(
-  output_file = "cecile.hist" 
+res <- compute_hawkes_histogram(
+  files = beds$preprocess_beds,
+  names = beds$names
 )
 ```
 
@@ -360,7 +400,6 @@ compute_hawkes_histogram(
 
 
 ```{r analyse_cecile_data}
-
 ww <- convolve_to_histogram(
   res = res,
   eta = beds$interval_size
