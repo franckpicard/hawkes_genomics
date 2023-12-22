@@ -13,7 +13,7 @@
 #' @export
 #'
 triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
-  (x / sqrt(delta)) %>%
-    convolve(uniform_kernel(position, width)) %>%
+  (x / sqrt(delta)) |>
+    convolve(uniform_kernel(position, width)) |>
     convolve(uniform_kernel(position, vs_width))
 }

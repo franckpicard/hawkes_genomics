@@ -16,8 +16,8 @@
 #' @importFrom purrr map_dbl map2 map
 #' @importFrom tidyr nest unnest
 convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
-  getparam(data, K = K, delta = delta) %>% 
-  dplyr::group_by(name, vs_name) %>%
+  getparam(data, K = K, delta = delta) |> 
+  dplyr::group_by(name, vs_name) |>
   dplyr::mutate(
     width = purrr::map_dbl(name, function(x, width = width, names = names) {
         width[which(names == x)]
@@ -29,27 +29,27 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
       }, width = width, names = colnames(data)
     )
     
-  ) %>% 
-  dplyr::group_by(name, vs_name) %>%
-  tidyr::nest(params = c(value, width, vs_width, start, stop)) %>%
+  ) |> 
+  dplyr::group_by(name, vs_name) |>
+  tidyr::nest(params = c(value, width, vs_width, start, stop)) |>
   dplyr::mutate(
     convolution = purrr::map(
       params,
       function(params, delta = delta, K = K) {
-         params %>%
+         params |>
           dplyr::mutate(
             position = purrr::map2(
               start, stop, function(x, y) {
                 x:y
               })
-          ) %>%
-          tidyr::unnest(c(position)) %>%
+          ) |>
+          tidyr::unnest(c(position)) |>
           dplyr::mutate(
             convolution = triple_convolution(
                 position, value, width, vs_width, delta
             )
-          ) %>%
-        dplyr::select(c(position, convolution)) %>%
+          ) |>
+        dplyr::select(c(position, convolution)) |>
         dplyr::mutate(
           position = position - max(position) / 2,
         )

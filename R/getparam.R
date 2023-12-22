@@ -13,19 +13,19 @@
 #' @importFrom dplyr slice mutate relocate arrange
 #' @importFrom tidyr pivot_longer
 getparam <- function(data, K = 10, delta = 1e4) {
-  res %>% 
-    tibble::as_tibble() %>%
-    dplyr::slice(2:n()) %>%
+  res |> 
+    tibble::as_tibble() |>
+    dplyr::slice(2:n()) |>
     dplyr::mutate(
       vs_name = rep(1:ncol(.), each = K),
       start = rep(rep(0:(K - 1)), ncol(.)) * delta * 2 + 1,
       stop = rep(rep(1:K), ncol(.)) * delta * 2
-    ) %>%
+    ) |>
     dplyr::mutate(
       vs_name = levels(as.factor(colnames(res)))[vs_name],
-    ) %>%
-    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) %>%
-    dplyr::relocate(name) %>%
+    ) |>
+    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) |>
+    dplyr::relocate(name) |>
     dplyr::arrange(name, vs_name, start, stop)
   
 }

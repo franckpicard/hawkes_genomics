@@ -19,8 +19,8 @@
 plot_convolution <- function(data, width, K = 10, delta = 1e4){
   data <- convolve_with_kernel(
     data = data, width = width, K = K, delta = delta
-    ) %>% 
-    tidyr::unnest(convolution) %>%
+    ) |> 
+    tidyr::unnest(convolution) |>
     dplyr::mutate(
       title = paste(
         name, "->", vs_name, "|", paste(
@@ -33,11 +33,11 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
     xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
   ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
   ggplot2::geom_ribbon(
-    data = data %>% dplyr::filter(convolution >= 0),
+    data = data |> dplyr::filter(convolution >= 0),
     ggplot2::aes(x = position, ymin = 0, ymax = convolution),
     fill = "#EABDBA", color = "black") +
   ggplot2::geom_ribbon(
-    data = data %>% dplyr::filter(convolution <= 0),
+    data = data |> dplyr::filter(convolution <= 0),
     ggplot2::aes(x = position, ymin = convolution, ymax = 0),
     fill = "#8EBBF5", color = "black") +
   ggplot2::facet_wrap(~title, scales = "free_y") +

@@ -26,9 +26,9 @@ compute_hawkes_histogram <- function(
     "src/hawkes_bin",
     cmd,
     stdout = TRUE
-  ) %>%
-  textConnection() %>%
-  read.table(col.names = names) %>%
+  ) |>
+  textConnection() |>
+  read.table(col.names = names) |>
   as.matrix()
 }
 

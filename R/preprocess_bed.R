@@ -22,15 +22,15 @@ preprocess_bed <- function(
   tibble::tibble(
     files = files,
     names = names
-  ) %>% 
+  ) |> 
     dplyr::mutate(
       bed = purrr::map(files, read_bed)
-    ) %>%
-  tidyr::unnest(cols = c(bed)) %>%
-  filter_windows(maxlag = maxlag) %>%
+    ) |>
+  tidyr::unnest(cols = c(bed)) |>
+  filter_windows(maxlag = maxlag) |>
   dplyr::mutate(
     preprocess_beds = purrr::map2(
         files, beds, write_bed, outdir = outdir, prefix = prefix)
-  ) %>%
+  ) |>
   tidyr::unnest(preprocess_beds)
 }

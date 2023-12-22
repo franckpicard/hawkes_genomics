@@ -51,25 +51,25 @@ read_bed <- function(path) {
 #' @importFrom dplyr group_by arrange mutate filter
 #' @importFrom tidyr nest
 filter_windows <- function(data, maxlag) {
-  data %>% 
-    dplyr::group_by(chr) %>%
-    dplyr::arrange(start, stop, .by_group = TRUE) %>%
+  data |> 
+    dplyr::group_by(chr) |>
+    dplyr::arrange(start, stop, .by_group = TRUE) |>
     dplyr::mutate(
       window = purrr::pmap_int(
         list(names, start, stop), function(names, start, stop, max_lag) {
           min(start) %/% max_lag + 1
         }, max_lag = maxlag)
-    ) %>% 
-    dplyr::group_by(chr, window) %>%
+    ) |> 
+    dplyr::group_by(chr, window) |>
     dplyr::mutate(
       count = length(levels(as.factor(names))),
-    ) %>% 
-    dplyr::filter(count > 1) %>%
-    dplyr::group_by(files) %>%
-    dplyr::select(files, names, chr, start, stop) %>%
+    ) |> 
+    dplyr::filter(count > 1) |>
+    dplyr::group_by(files) |>
+    dplyr::select(files, names, chr, start, stop) |>
     dplyr::mutate(
       interval_size = mean(stop - start)
-    ) %>% 
+    ) |> 
     tidyr::nest(beds = c(chr, start, stop))
 }
 ```
@@ -125,16 +125,16 @@ preprocess_bed <- function(
   tibble::tibble(
     files = files,
     names = names
-  ) %>% 
+  ) |> 
     dplyr::mutate(
       bed = purrr::map(files, read_bed)
-    ) %>%
-  tidyr::unnest(cols = c(bed)) %>%
-  filter_windows(maxlag = maxlag) %>%
+    ) |>
+  tidyr::unnest(cols = c(bed)) |>
+  filter_windows(maxlag = maxlag) |>
   dplyr::mutate(
     preprocess_beds = purrr::map2(
         files, beds, write_bed, outdir = outdir, prefix = prefix)
-  ) %>%
+  ) |>
   tidyr::unnest(preprocess_beds)
 }
 ```
@@ -167,9 +167,9 @@ compute_hawkes_histogram <- function(
     "src/hawkes_bin",
     cmd,
     stdout = TRUE
-  ) %>%
-  textConnection() %>%
-  read.table(col.names = names) %>%
+  ) |>
+  textConnection() |>
+  read.table(col.names = names) |>
   as.matrix()
 }
 
@@ -191,19 +191,19 @@ compute_hawkes_histogram <- function(
 #' @importFrom dplyr slice mutate relocate arrange
 #' @importFrom tidyr pivot_longer
 getparam <- function(data, K = 10, delta = 1e4) {
-  res %>% 
-    tibble::as_tibble() %>%
-    dplyr::slice(2:n()) %>%
+  res |> 
+    tibble::as_tibble() |>
+    dplyr::slice(2:n()) |>
     dplyr::mutate(
       vs_name = rep(1:ncol(.), each = K),
       start = rep(rep(0:(K - 1)), ncol(.)) * delta * 2 + 1,
       stop = rep(rep(1:K), ncol(.)) * delta * 2
-    ) %>%
+    ) |>
     dplyr::mutate(
       vs_name = levels(as.factor(colnames(res)))[vs_name],
-    ) %>%
-    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) %>%
-    dplyr::relocate(name) %>%
+    ) |>
+    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) |>
+    dplyr::relocate(name) |>
     dplyr::arrange(name, vs_name, start, stop)
   
 }
@@ -243,8 +243,8 @@ uniform_kernel <- function(x, width){
 #' @export
 #'
 triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
-  (x / sqrt(delta)) %>%
-    convolve(uniform_kernel(position, width)) %>%
+  (x / sqrt(delta)) |>
+    convolve(uniform_kernel(position, width)) |>
     convolve(uniform_kernel(position, vs_width))
 }
 ```
@@ -268,8 +268,8 @@ triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
 #' @importFrom purrr map_dbl map2 map
 #' @importFrom tidyr nest unnest
 convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
-  getparam(data, K = K, delta = delta) %>% 
-  dplyr::group_by(name, vs_name) %>%
+  getparam(data, K = K, delta = delta) |> 
+  dplyr::group_by(name, vs_name) |>
   dplyr::mutate(
     width = purrr::map_dbl(name, function(x, width = width, names = names) {
         width[which(names == x)]
@@ -281,27 +281,27 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
       }, width = width, names = colnames(data)
     )
     
-  ) %>% 
-  dplyr::group_by(name, vs_name) %>%
-  tidyr::nest(params = c(value, width, vs_width, start, stop)) %>%
+  ) |> 
+  dplyr::group_by(name, vs_name) |>
+  tidyr::nest(params = c(value, width, vs_width, start, stop)) |>
   dplyr::mutate(
     convolution = purrr::map(
       params,
       function(params, delta = delta, K = K) {
-         params %>%
+         params |>
           dplyr::mutate(
             position = purrr::map2(
               start, stop, function(x, y) {
                 x:y
               })
-          ) %>%
-          tidyr::unnest(c(position)) %>%
+          ) |>
+          tidyr::unnest(c(position)) |>
           dplyr::mutate(
             convolution = triple_convolution(
                 position, value, width, vs_width, delta
             )
-          ) %>%
-        dplyr::select(c(position, convolution)) %>%
+          ) |>
+        dplyr::select(c(position, convolution)) |>
         dplyr::mutate(
           position = position - max(position) / 2,
         )
@@ -334,8 +334,8 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
 plot_convolution <- function(data, width, K = 10, delta = 1e4){
   data <- convolve_with_kernel(
     data = data, width = width, K = K, delta = delta
-    ) %>% 
-    tidyr::unnest(convolution) %>%
+    ) |> 
+    tidyr::unnest(convolution) |>
     dplyr::mutate(
       title = paste(
         name, "->", vs_name, "|", paste(
@@ -348,11 +348,11 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
     xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
   ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
   ggplot2::geom_ribbon(
-    data = data %>% dplyr::filter(convolution >= 0),
+    data = data |> dplyr::filter(convolution >= 0),
     ggplot2::aes(x = position, ymin = 0, ymax = convolution),
     fill = "#EABDBA", color = "black") +
   ggplot2::geom_ribbon(
-    data = data %>% dplyr::filter(convolution <= 0),
+    data = data |> dplyr::filter(convolution <= 0),
     ggplot2::aes(x = position, ymin = convolution, ymax = 0),
     fill = "#8EBBF5", color = "black") +
   ggplot2::facet_wrap(~title, scales = "free_y") +
@@ -367,12 +367,19 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
 
 ## preprocess data
 
+  # files = c(
+  #   system.file("extdata", "enhancer.bed", package="hawkes.genomics"),
+  #   system.file("extdata", "coding_prom.bed", package="hawkes.genomics"),
+  #   system.file("extdata", "sin3peaks.bed", package="hawkes.genomics")
+  # ),
+
 ```{r, eval = F}
 beds <- preprocess_bed(
+  # files = c("bed/enhancer.bed", "bed/coding_prom.bed", "bed/sin3peaks.bed"),
   files = c(
-    system.file("extdata", "enhancer.bed", package="hawkes_genomics"),
-    system.file("extdata", "coding_prom.bed", package="hawkes_genomics"),
-    system.file("extdata", "sin3peaks.bed", package="hawkes_genomics")
+    system.file("extdata", "enhancer.bed", package="hawkes.genomics"),
+    system.file("extdata", "coding_prom.bed", package="hawkes.genomics"),
+    system.file("extdata", "sin3peaks.bed", package="hawkes.genomics")
   ),
   names = c("enhancer", "prom", "sin3"),
 )

@@ -12,24 +12,24 @@
 #' @importFrom tidyr nest
 #' @noRd
 filter_windows <- function(data, maxlag) {
-  data %>% 
-    dplyr::group_by(chr) %>%
-    dplyr::arrange(start, stop, .by_group = TRUE) %>%
+  data |> 
+    dplyr::group_by(chr) |>
+    dplyr::arrange(start, stop, .by_group = TRUE) |>
     dplyr::mutate(
       window = purrr::pmap_int(
         list(names, start, stop), function(names, start, stop, max_lag) {
           min(start) %/% max_lag + 1
         }, max_lag = maxlag)
-    ) %>% 
-    dplyr::group_by(chr, window) %>%
+    ) |> 
+    dplyr::group_by(chr, window) |>
     dplyr::mutate(
       count = length(levels(as.factor(names))),
-    ) %>% 
-    dplyr::filter(count > 1) %>%
-    dplyr::group_by(files) %>%
-    dplyr::select(files, names, chr, start, stop) %>%
+    ) |> 
+    dplyr::filter(count > 1) |>
+    dplyr::group_by(files) |>
+    dplyr::select(files, names, chr, start, stop) |>
     dplyr::mutate(
       interval_size = mean(stop - start)
-    ) %>% 
+    ) |> 
     tidyr::nest(beds = c(chr, start, stop))
 }
