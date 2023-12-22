@@ -198,20 +198,22 @@ getparam <- function(data, K = 10) {
   }
   return(a)
 }
-getparam2 <- function(data, K = 10) {
+getparam2 <- function(data, K = 10, delta = 1e4) {
   res %>% 
     as_tibble() %>% 
     dplyr::slice(2:n()) %>% 
     dplyr::mutate(
-      vs_name = rep(1:ncol(.), each = K)
+      vs_name = rep(1:ncol(.), each = K),
+      start = rep(rep(0:(K - 1)), ncol(.)) * delta * 2 + 1,
+      stop = rep(rep(1:K), ncol(.)) * delta * 2
     ) %>% 
     dplyr::mutate(
-      vs_name = levels(as.factor(colnames(.)))[vs_name]
+      vs_name = levels(as.factor(colnames(res)))[vs_name],
     ) %>% 
-    tidyr::pivot_longer(cols = !c(vs_name)) %>% 
+    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) %>% 
     dplyr::relocate(name) %>% 
-    dplyr::arrange(name, vs_name) %>% 
-    group_by(name, vs_name)
+    dplyr::arrange(name, vs_name, start, stop)
+  
 }
 ```
 
@@ -231,6 +233,29 @@ getparam2 <- function(data, K = 10) {
 #' @examples
 uniform_kernel <- function(x, width){
   1 * (abs(x) <= width) / width
+}
+```
+
+## triple_convolution
+
+```{r function-triple_convolution}
+#' the uniform kernel of width width 
+#'
+#' @param position position on which to convolve
+#' @param x interaction function parameter
+#' @param width width of the uniform kernel for the first process
+#' @param vs_width width of the uniform kernel for the second process 
+#' @param delta (default: 1e4) max range to consider
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @examples
+triple_convolution <- function(position, x, width, vs_width, delta = 1e4){
+  (x / sqrt(delta)) %>% 
+    convolve( uniform_kernel( position, width ) ) %>% 
+    convolve( uniform_kernel( position, vs_width ) )
 }
 ```
 
@@ -267,31 +292,103 @@ hw <- function(a, K, delta, eta_m, eta_ell) {
   hh <- rep(a, each = 2 * delta)
   convolve(w_ell, convolve(w_m, hh))
 }
+```
 
-convolve_with_kernel <- function(data, width, K = 10) {
-  getparam2(data, K = K) %>% 
+## convolve_with_kernel
+
+```{r function-convolve_with_kernel}
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param data results of compute_hawkes_histogram
+#' @param width a vector of beds interval width (in the same orde as the data columns)
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' 
+#' @return
+#' tibble
+#' @export
+#'
+#' @examples
+convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
+  getparam2(data, K = K, delta = delta) %>% 
   dplyr::group_by(name, vs_name) %>% 
   dplyr::mutate(
-    name_width = purrr::map_dbl(name, function(x, width = width, names = names){
+    width = purrr::map_dbl(name, function(x, width = width, names = names){
         width[which(names == x)]
       }, width = width, names = colnames(data)
     ),
-    vs_name_width = purrr::map_dbl(vs_name, function(x, width = width, names = names){
+    vs_width = purrr::map_dbl(vs_name, function(x, width = width, names = names){
         width[which(names == x)]
       }, width = width, names = colnames(data)
     )
+    
   ) %>% 
+  dplyr::group_by(name, vs_name) %>% 
+  tidyr::nest(params = c(value, width, vs_width, start, stop)) %>% 
   dplyr::mutate(
-    convolution = purrr::pmap_dbl(
-      list(value, name_width, vs_name_width), function(value, name_width, vs_name_width){
-      value %>% 
-        convolve(name_width) %>% 
-        convolve(vs_name_width)
-    })
+    convolution = purrr::map(
+      params,
+      function(params, delta = delta, K = K){
+         params %>%
+          dplyr::mutate(
+            position = purrr::map2(
+              start, stop, function(x, y){x:y})
+          ) %>%
+          unnest(c(position)) %>%
+          dplyr::mutate(
+            convolution = triple_convolution(position, value, width, vs_width, delta)
+          ) %>%
+        select(c(position, convolution)) %>% 
+        dplyr::mutate(
+          position = position - max(position) / 2,
+        )
+      }, delta = delta, K = K
+    )
   )
 }
-convolve_with_kernel(res, width = beds$interval_size, K = 10)
 
+```
+
+## plot_convolution
+
+```{r function-plot_convolution}
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param data results of compute_hawkes_histogram
+#' @param width a vector of beds interval width (in the same orde as the data columns)
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' 
+#' @return
+#' tibble
+#' @export
+#'
+#' @examples
+plot_convolution <- function(data, width, K = 10, delta = 1e4, perc = .1){
+  data <- convolve_with_kernel(
+    data = data, width = width, K = K, delta = delta
+    ) %>% 
+    tidyr::unnest(convolution) %>% 
+    dplyr::mutate(
+      title = paste(name, "->", vs_name, "|", paste(setdiff(beds$names, c(name, vs_name)), collapse = ", "))
+    )
+  ggplot2::ggplot() +
+  ggplot2::geom_vline(xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
+  ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
+  ggplot2::geom_ribbon(
+    data = data %>% filter(convolution >= 0),
+    ggplot2::aes(x = position, ymin = 0, ymax = convolution),
+    fill = "#EABDBA", color = "black") +
+  ggplot2::geom_ribbon(
+    data = data %>% filter(convolution <= 0),
+    ggplot2::aes(x = position, ymin = convolution, ymax = 0),
+    fill = "#8EBBF5", color = "black") +
+  ggplot2::facet_wrap(~title, scales = "free_y") +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
+}
 ```
 ## convolve_to_histogram
 
@@ -336,45 +433,6 @@ convolve_to_histogram <- function(res, eta, K = 10, delta = 1e4) {
 
 # Example
 
-We load plotting packages
-
-```{r example-load_package}
-library(ggplot2)
-library(grid)
-library(gridExtra)
-library(RColorBrewer)
-library(ggpubr)
-```
-
-set ggplot theme
-
-```{r example-set_theme}
-mytheme<- function(){
-  theme(
-    legend.title      = element_blank(),
-    legend.background = element_blank(),
-    legend.text       = element_text(size=10),
-    legend.key.size   = unit(0.5,"cm"),
-    axis.text.x       = element_text(size = 8,angle = 0,hjust=0.5,vjust=0.5),    
-    axis.title.x      = element_text(size=8),
-    axis.title.y      = element_blank(),
-    axis.text.y       = element_text(size=8,hjust=0.5),
-    plot.margin       = unit(rep(0.2,4), "lines"),
-    panel.background  = element_rect(fill=NA,color="black"),
-    #strip.background  = element_rect(fill="white",color="black"),
-    strip.background = element_blank(),
-    panel.border      = element_rect(fill = NA, color = NA),
-    strip.text        = element_text(size=8),
-    plot.title        = element_text(hjust=0.5),
-    strip.text.x = element_text(size = 8),
-    strip.text.y = element_text(size = 8),
-    
-  )
-}
-```
-
-# load Cecile data
-
 ## preprocess data
 ```{r load_cecile_data}
 beds <- preprocess_bed(
@@ -387,6 +445,7 @@ beds <- preprocess_bed(
 )
 beds
 ```
+
 ## hawkes computation
 
 ```{r compute_hitogram}
@@ -399,53 +458,6 @@ res <- compute_hawkes_histogram(
 ## plot data
 
 
-```{r analyse_cecile_data}
-ww <- convolve_to_histogram(
-  res = res,
-  eta = beds$interval_size
-)
-
-gg = list()
-h  = 0
-for (Fi in  c("enh", "prom", "sin3")) {
-  for (Fj in  c("enh", "prom", "sin3")) {
-    h       = h + 1
-    gg[[h]] = ggplot(ww[(ww$pp1 == Fi) &
-                          (ww$pp2 == Fj), ], aes(
-                            x = x / 1000,
-                            y = h,
-                            color = method
-                          )) +
-      geom_vline(xintercept = 0,
-                 color = "gray",
-                 size = 0.5) + geom_line(color = "black") +
-      xlab("position kb") + ylab("") + xlab("") +
-      mytheme()
-  }
-}
-gg[[1]] = gg[[1]] + ggtitle(expression("enhancer" %->% "enhancer | prom, sin3"))
-gg[[2]] = gg[[2]] + ggtitle(expression("prom"  %->% "enhancer | sin3"))
-gg[[3]] = gg[[3]] + ggtitle(expression("sin3" %->% "enhancer | prom")) + geom_hline(yintercept =
-                                                                                      0,
-                                                                                    color = "gray",
-                                                                                    size = 0.5)
-gg[[4]] = gg[[4]] + ggtitle(expression("enhancer" %->% "prom | sin3"))
-gg[[5]] = gg[[5]] + ggtitle(expression("prom" %->%  "prom | enhancer,sin3"))
-gg[[6]] = gg[[6]] + ggtitle(expression("sin3" %->% "prom | enhancer")) + geom_hline(yintercept =
-                                                                                      0,
-                                                                                    color = "gray",
-                                                                                    size = 0.5)
-gg[[7]] = gg[[7]] + ggtitle(expression("enhancer" %->% "sin3 | prom")) + geom_hline(yintercept =
-                                                                                      0,
-                                                                                    color = "gray",
-                                                                                    size = 0.5)
-gg[[8]] = gg[[8]] + ggtitle(expression("prom" %->%  "sin3 | enhancer")) + geom_hline(yintercept =
-                                                                                       0,
-                                                                                     color = "gray",
-                                                                                     size = 0.5)
-gg[[9]] = gg[[9]] + ggtitle(expression("sin3" %->% "sin3 | enhancer,prom")) + geom_hline(yintercept =
-                                                                                           0,
-                                                                                         color = "gray",
-                                                                                         size = 0.5)
-gg = grid.arrange(gg[[1]], gg[[2]], gg[[3]], gg[[4]], gg[[5]], gg[[6]], gg[[7]], gg[[8]], gg[[9]])
+```{r plot_histogram}
+plot_convolution(res, width = beds$interval_size)
 ```
