@@ -6,6 +6,14 @@ Authors@R:
            comment = c(ORCID = "0000-0002-7606-4110"))
 Description: R wrappers to compute spacial correlogram from bed files.
 License: AGPL (>= 3)
+Imports: 
+    dplyr,
+    ggplot2,
+    purrr,
+    stringr,
+    tibble,
+    tidyr,
+    vroom
 Suggests: 
     knitr,
     rmarkdown

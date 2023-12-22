@@ -24,9 +24,9 @@ pkgload::load_all(export_all = FALSE)
 #' helper function for preprocess_bed to quickly load bed files
 #'
 #' @param path bed file path
-#'
 #' @return
 #' tibble
+#' @importFrom vroom vroom
 read_bed <- function(path) {
   vroom::vroom(
     path,
@@ -48,27 +48,29 @@ read_bed <- function(path) {
 #'
 #' @return
 #' tibble
+#' @importFrom dplyr group_by arrange mutate filter
+#' @importFrom tidyr nest
 filter_windows <- function(data, maxlag) {
   data %>% 
-    dplyr::group_by(chr) %>% 
-    dplyr::arrange(start, stop, .by_group = T) %>% 
+    dplyr::group_by(chr) %>%
+    dplyr::arrange(start, stop, .by_group = TRUE) %>%
     dplyr::mutate(
       window = purrr::pmap_int(
         list(names, start, stop), function(names, start, stop, max_lag) {
           min(start) %/% max_lag + 1
         }, max_lag = maxlag)
     ) %>% 
-    dplyr::group_by(chr, window) %>% 
+    dplyr::group_by(chr, window) %>%
     dplyr::mutate(
       count = length(levels(as.factor(names))),
     ) %>% 
-    filter(count > 1) %>% 
-    group_by(files) %>% 
-    select(files, names, chr, start, stop) %>% 
+    dplyr::filter(count > 1) %>%
+    dplyr::group_by(files) %>%
+    dplyr::select(files, names, chr, start, stop) %>%
     dplyr::mutate(
       interval_size = mean(stop - start)
     ) %>% 
-    nest(beds = c(chr, start, stop))
+    tidyr::nest(beds = c(chr, start, stop))
 }
 ```
 ## write_bed
@@ -82,15 +84,16 @@ filter_windows <- function(data, maxlag) {
 #'
 #' @return
 #' a path
+#' @importFrom stringr str_split str_c
+#' @importFrom vroom vroom_write
 write_bed <- function(path, data, outdir, prefix = "clean_") {
   path <- stringr::str_split(path, "/")[[1]]
   path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
-  print(path)
   vroom::vroom_write(
     data,
     file = path,
     delim = "\t",
-    col_names = F,
+    col_names = FALSE,
     quote = "none"
   )
   return(path)
@@ -113,16 +116,12 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #' save a list of preprocessed bed files 
 #' @export
 #'
-#' @examples
-#' preprocess_bed(
-#'   files = c(
-#'     "inst/extdata/enhancer.bed",
-#'     "inst/extdata/coding_prom.bed",
-#'     "inst/extdata/sin3peaks.bed"
-#'   ),
-#'   names = c("enhancer", "prom", "sin3"),
-#' )
-preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
+#' @importFrom tibble tibble
+#' @importFrom dplyr mutate 
+#' @importFrom purrr map map2
+#' @importFrom tidyr unnest
+preprocess_bed <- function(
+  files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
   tibble::tibble(
     files = files,
     names = names
@@ -130,12 +129,13 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "", outd
     dplyr::mutate(
       bed = purrr::map(files, read_bed)
     ) %>%
-  tidyr::unnest(cols = c(bed)) %>% 
-  filter_windows(maxlag = maxlag) %>% 
+  tidyr::unnest(cols = c(bed)) %>%
+  filter_windows(maxlag = maxlag) %>%
   dplyr::mutate(
-    preprocess_beds = purrr::map2(files, beds, write_bed, outdir = outdir, prefix = prefix)
-  ) %>% 
-  unnest(preprocess_beds)
+    preprocess_beds = purrr::map2(
+        files, beds, write_bed, outdir = outdir, prefix = prefix)
+  ) %>%
+  tidyr::unnest(preprocess_beds)
 }
 ```
 ## compute_hawkes_histogram
@@ -144,6 +144,7 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "", outd
 #' compute_hawkes_histogram
 #'
 #' @param files a vector of bed files path
+#' @param names (default: files) names of the samples
 #' @param K (default: 10) size of the histogram bins
 #' @param delta (default: 1e4) max range to consider
 #' @param kernel (default: "heterogeneous_interval") kernel for the computation
@@ -152,9 +153,9 @@ preprocess_bed <- function(files, names = files, maxlag = 1e5, prefix = "", outd
 #' save a results file
 #' @export
 #'
-#' @examples
 compute_hawkes_histogram <- function(
-    files, names = files, K = 10, delta = 1e4 , kernel = "heterogeneous_interval"){
+    files, names = files, K = 10, delta = 1e4,
+  kernel = "heterogeneous_interval") {
   cmd <- c()
   for (bed in files) {
     cmd <- c(cmd, paste("-b", bed))
@@ -165,10 +166,10 @@ compute_hawkes_histogram <- function(
   system2(
     "src/hawkes_bin",
     cmd,
-    stdout = T
-  ) %>% 
-  textConnection() %>% 
-  read.table(col.names = names) %>% 
+    stdout = TRUE
+  ) %>%
+  textConnection() %>%
+  read.table(col.names = names) %>%
   as.matrix()
 }
 
@@ -180,25 +181,29 @@ compute_hawkes_histogram <- function(
 #' getparam
 #'
 #' @param data a matrix of parameters 
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
 #' @return
 #' Median of vector x
 #' @export
 #'
-#' @examples
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr slice mutate relocate arrange
+#' @importFrom tidyr pivot_longer
 getparam <- function(data, K = 10, delta = 1e4) {
   res %>% 
-    as_tibble() %>% 
-    dplyr::slice(2:n()) %>% 
+    tibble::as_tibble() %>%
+    dplyr::slice(2:n()) %>%
     dplyr::mutate(
       vs_name = rep(1:ncol(.), each = K),
       start = rep(rep(0:(K - 1)), ncol(.)) * delta * 2 + 1,
       stop = rep(rep(1:K), ncol(.)) * delta * 2
-    ) %>% 
+    ) %>%
     dplyr::mutate(
       vs_name = levels(as.factor(colnames(res)))[vs_name],
-    ) %>% 
-    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) %>% 
-    dplyr::relocate(name) %>% 
+    ) %>%
+    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) %>%
+    dplyr::relocate(name) %>%
     dplyr::arrange(name, vs_name, start, stop)
   
 }
@@ -217,7 +222,6 @@ getparam <- function(data, K = 10, delta = 1e4) {
 #' Median of vector x
 #' @export
 #'
-#' @examples
 uniform_kernel <- function(x, width){
   1 * (abs(x) <= width) / width
 }
@@ -238,11 +242,10 @@ uniform_kernel <- function(x, width){
 #' Median of vector x
 #' @export
 #'
-#' @examples
-triple_convolution <- function(position, x, width, vs_width, delta = 1e4){
-  (x / sqrt(delta)) %>% 
-    convolve( uniform_kernel( position, width ) ) %>% 
-    convolve( uniform_kernel( position, vs_width ) )
+triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
+  (x / sqrt(delta)) %>%
+    convolve(uniform_kernel(position, width)) %>%
+    convolve(uniform_kernel(position, vs_width))
 }
 ```
 
@@ -261,37 +264,44 @@ triple_convolution <- function(position, x, width, vs_width, delta = 1e4){
 #' tibble
 #' @export
 #'
-#' @examples
+#' @importFrom dplyr group_by mutate select
+#' @importFrom purrr map_dbl map2 map
+#' @importFrom tidyr nest unnest
 convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
   getparam(data, K = K, delta = delta) %>% 
-  dplyr::group_by(name, vs_name) %>% 
+  dplyr::group_by(name, vs_name) %>%
   dplyr::mutate(
-    width = purrr::map_dbl(name, function(x, width = width, names = names){
+    width = purrr::map_dbl(name, function(x, width = width, names = names) {
         width[which(names == x)]
       }, width = width, names = colnames(data)
     ),
-    vs_width = purrr::map_dbl(vs_name, function(x, width = width, names = names){
+    vs_width = purrr::map_dbl(
+        vs_name, function(x, width = width, names = names) {
         width[which(names == x)]
       }, width = width, names = colnames(data)
     )
     
   ) %>% 
-  dplyr::group_by(name, vs_name) %>% 
-  tidyr::nest(params = c(value, width, vs_width, start, stop)) %>% 
+  dplyr::group_by(name, vs_name) %>%
+  tidyr::nest(params = c(value, width, vs_width, start, stop)) %>%
   dplyr::mutate(
     convolution = purrr::map(
       params,
-      function(params, delta = delta, K = K){
+      function(params, delta = delta, K = K) {
          params %>%
           dplyr::mutate(
             position = purrr::map2(
-              start, stop, function(x, y){x:y})
+              start, stop, function(x, y) {
+                x:y
+              })
           ) %>%
-          unnest(c(position)) %>%
+          tidyr::unnest(c(position)) %>%
           dplyr::mutate(
-            convolution = triple_convolution(position, value, width, vs_width, delta)
+            convolution = triple_convolution(
+                position, value, width, vs_width, delta
+            )
           ) %>%
-        select(c(position, convolution)) %>% 
+        dplyr::select(c(position, convolution)) %>%
         dplyr::mutate(
           position = position - max(position) / 2,
         )
@@ -317,41 +327,52 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
 #' tibble
 #' @export
 #'
-#' @examples
-plot_convolution <- function(data, width, K = 10, delta = 1e4, perc = .1){
+#' @importFrom tidyr unnest
+#' @importFrom dplyr mutate filter
+#' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
+#' @importFrom ggplot2 theme_bw element_text
+plot_convolution <- function(data, width, K = 10, delta = 1e4){
   data <- convolve_with_kernel(
     data = data, width = width, K = K, delta = delta
     ) %>% 
-    tidyr::unnest(convolution) %>% 
+    tidyr::unnest(convolution) %>%
     dplyr::mutate(
-      title = paste(name, "->", vs_name, "|", paste(setdiff(beds$names, c(name, vs_name)), collapse = ", "))
+      title = paste(
+        name, "->", vs_name, "|", paste(
+          setdiff(beds$names, c(name, vs_name)), collapse = ", "
+        )
+      )
     )
   ggplot2::ggplot() +
-  ggplot2::geom_vline(xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
+  ggplot2::geom_vline(
+    xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
   ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
   ggplot2::geom_ribbon(
-    data = data %>% filter(convolution >= 0),
+    data = data %>% dplyr::filter(convolution >= 0),
     ggplot2::aes(x = position, ymin = 0, ymax = convolution),
     fill = "#EABDBA", color = "black") +
   ggplot2::geom_ribbon(
-    data = data %>% filter(convolution <= 0),
+    data = data %>% dplyr::filter(convolution <= 0),
     ggplot2::aes(x = position, ymin = convolution, ymax = 0),
     fill = "#8EBBF5", color = "black") +
   ggplot2::facet_wrap(~title, scales = "free_y") +
   ggplot2::theme_bw() +
-  ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
+  ggplot2::theme(axis.text.x = ggplot2::element_text(
+    angle = 45, vjust = 1, hjust = 1
+  ))
 }
 ```
 
 # Example
 
 ## preprocess data
-```{r load_cecile_data}
+
+```{r, eval = F}
 beds <- preprocess_bed(
   files = c(
-    "./inst/extdata/enhancer.bed",
-    "./inst/extdata/coding_prom.bed",
-    "./inst/extdata/sin3peaks.bed"
+    system.file("extdata", "enhancer.bed", package="hawkes_genomics"),
+    system.file("extdata", "coding_prom.bed", package="hawkes_genomics"),
+    system.file("extdata", "sin3peaks.bed", package="hawkes_genomics")
   ),
   names = c("enhancer", "prom", "sin3"),
 )
@@ -360,7 +381,7 @@ beds
 
 ## hawkes computation
 
-```{r compute_hitogram}
+```{r, eval = F}
 res <- compute_hawkes_histogram(
   files = beds$preprocess_beds,
   names = beds$names
@@ -370,6 +391,6 @@ res <- compute_hawkes_histogram(
 ## plot data
 
 
-```{r plot_histogram}
+```{r, eval = F}
 plot_convolution(res, width = beds$interval_size)
 ```
