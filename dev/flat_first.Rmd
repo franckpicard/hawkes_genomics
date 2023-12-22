@@ -12,7 +12,7 @@ library(parallel)
 
 ```{r development-load}
 # Load already included functions if relevant
-# pkgload::load_all(export_all = FALSE)
+pkgload::load_all(export_all = FALSE)
 ```
 
 
@@ -185,20 +185,7 @@ compute_hawkes_histogram <- function(
 #' @export
 #'
 #' @examples
-getparam <- function(data, K = 10) {
-  data <- data[-1, ] # we remove the line corresponding to the nu's
-  M <- ncol(data)
-  ss <- seq(1, M * K, by = K)
-  ee <- c((ss - 1)[2:M], M * K)
-  a <- array(data = NA, dim = c(M, M, K))
-  for (m in 1:M) {
-    for (ell in 1:M) {
-      a[m, ell, ] <- data[ss[ell]:ee[ell], m]  # proba d'observer des occurrences de m en plus après avoir observé des occurrences de ell
-    }
-  }
-  return(a)
-}
-getparam2 <- function(data, K = 10, delta = 1e4) {
+getparam <- function(data, K = 10, delta = 1e4) {
   res %>% 
     as_tibble() %>% 
     dplyr::slice(2:n()) %>% 
@@ -259,41 +246,6 @@ triple_convolution <- function(position, x, width, vs_width, delta = 1e4){
 }
 ```
 
-## hw
-
-```{r function-hw}
-#' hw convolution of the h interaction function with the kernel of the 2
-#' processus
-#'
-#' @param a
-#' @param K
-#' @param delta
-#' @param eta_m 
-#' @param eta_ell 
-#' 
-#' @return
-#' Median of vector x
-#' @export
-#'
-#' @examples
-hw <- function(a, K, delta, eta_m, eta_ell) {
-  w_ell <- sapply(
-    1:(2 * K * delta),
-    FUN = function(x) {
-      uniform_kernel(x, eta_ell)
-    }
-  )
-  w_m <- sapply(
-    1:(2 * K * delta),
-    FUN = function(x) {
-      uniform_kernel(x, eta_m)
-    }
-  )
-  hh <- rep(a, each = 2 * delta)
-  convolve(w_ell, convolve(w_m, hh))
-}
-```
-
 ## convolve_with_kernel
 
 ```{r function-convolve_with_kernel}
@@ -311,7 +263,7 @@ hw <- function(a, K, delta, eta_m, eta_ell) {
 #'
 #' @examples
 convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
-  getparam2(data, K = K, delta = delta) %>% 
+  getparam(data, K = K, delta = delta) %>% 
   dplyr::group_by(name, vs_name) %>% 
   dplyr::mutate(
     width = purrr::map_dbl(name, function(x, width = width, names = names){
@@ -388,46 +340,6 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4, perc = .1){
   ggplot2::facet_wrap(~title, scales = "free_y") +
   ggplot2::theme_bw() +
   ggplot2::theme(axis.text.x = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1))
-}
-```
-## convolve_to_histogram
-
-```{r function-convolve_to_histogram}
-#' compute_hawkes_histogram
-#'
-#' @param res results from compute_hawkes_histogram
-#' @param eta vector of bed interval size means
-#' @param K (default: 10) size of the histogram bins
-#' @param delta (default: 1e4) max range to consider
-#'
-#' @return
-#' save a results file
-#' @export
-#'
-#' @examples
-convolve_to_histogram <- function(res, eta, K = 10, delta = 1e4) {
-  a <- getparam(res)
-  x <- c(1:(K * delta))
-  x <- c(-x[length(x):1], x)
-  pp <- colnames(res)
-  ww = lapply(
-    1:ncol(res),
-    FUN = function(i) {
-      lapply(
-        1:ncol(res),
-        FUN = function(j, pp = pp, x = x, K = K, delta = delta, eta = eta) {
-          hh = hw(a[i, j, ] / sqrt(delta), K, delta, eta[i], eta[j])
-          data.frame(
-            h = hh[seq(1, length(x), by = 100)],
-            x = x[seq(1, length(x), by = 100)],
-            pp1 = pp[i],
-            pp2 = pp[j]
-          )
-        }, pp = pp, x = x, K = K, delta = delta, eta = eta
-      )
-    }
-  )
-  ww = Reduce("rbind", Reduce("rbind", ww))
 }
 ```
 
