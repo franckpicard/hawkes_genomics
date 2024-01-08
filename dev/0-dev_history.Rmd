@@ -14,15 +14,19 @@ All commands that you use to use when developing packages...
 ```{r description}
 # Describe your package
 fusen::fill_description(
-  pkg = here::here(),
+  pkg = "hawkesGenomics",
   fields = list(
-    Title = "Hawkes_genomics",
-    Description = "R wrappers to compute spacial correlogram from bed files",
+    Title = "Hawkes genomics",
+    Description = "R wrappers to compute spacial correlogram from bed files.",
     `Authors@R` = c(
-      person("Laurent", "Modolo", email = "laurent.modolo@ens-lyon.fr", role = c("aut", "cre"), comment = c(ORCID = "0000-0002-7606-4110"))
-    )
+      person("Laurent", "Modolo", email = "laurent.modolo@ens-lyon.fr",
+        role = c("aut", "cre"), comment = c(ORCID = "0000-0002-7606-4110")),
+      person("Franck", "Picard", email = "franck.picard@ens-lyon.fr",
+        role = c("aut"), comment = c(ORCID = "0000-0001-8084-5481"))
+    ),
+    Version = "0.0.1"
   ),
-  overwrite = T
+  overwrite = TRUE
 )
 # Define License with use_*_license()
 usethis::use_agpl3_license()
@@ -109,7 +113,7 @@ attachment::att_amend_desc()
 devtools::check()
 
 # Add a new flat template
-fusen::add_flat_template("add")
+# fusen::add_flat_template("add")
 ```
 
 # Share the package

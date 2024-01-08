@@ -55,7 +55,12 @@ library(hawkes.genomics)
 
 ```{r eval = F}
 beds <- preprocess_bed(
-  files = c("bed/enhancer.bed", "bed/coding_prom.bed", "bed/sin3peaks.bed"),
+  # files = c("bed/enhancer.bed", "bed/coding_prom.bed", "bed/sin3peaks.bed"),
+  files = c(
+    system.file("extdata", "enhancer.bed", package="hawkes.genomics"),
+    system.file("extdata", "coding_prom.bed", package="hawkes.genomics"),
+    system.file("extdata", "sin3peaks.bed", package="hawkes.genomics")
+  ),
   names = c("enhancer", "prom", "sin3"),
 )
 beds

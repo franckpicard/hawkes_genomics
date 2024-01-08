@@ -1,25 +1,18 @@
-Package: hawkes.genomics
-Title: Hawkes_genomics
-Version: 0.0.0.9000
-Authors@R: 
-    person("Laurent", "Modolo", , "laurent.modolo@ens-lyon.fr", role = c("aut", "cre"),
-           comment = c(ORCID = "0000-0002-7606-4110"))
+Package: hawkesGenomics
+Version: 0.0.1
+Title: Hawkes Genomics
 Description: R wrappers to compute spacial correlogram from bed files.
+Authors@R: c(person(given = "Laurent",
+         family = "Modolo",
+         role = c("aut", "cre"),
+         email = "laurent.modolo@ens-lyon.fr",
+         comment = c(ORCID = "0000-0002-7606-4110")),
+  person(given = "Franck",
+         family = "Picard",
+         role = "aut",
+         email = "franck.picard@ens-lyon.fr",
+         comment = c(ORCID = "0000-0001-8084-5481")))
 License: AGPL (>= 3)
-Imports: 
-    dplyr,
-    ggplot2,
-    purrr,
-    stringr,
-    tibble,
-    tidyr,
-    vroom
-Suggests: 
-    knitr,
-    rmarkdown
-VignetteBuilder: 
-    knitr
-Config/fusen/version: 0.5.2
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3

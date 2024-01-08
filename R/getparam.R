@@ -10,16 +10,16 @@
 #' @export
 #'
 #' @importFrom tibble as_tibble
-#' @importFrom dplyr slice mutate relocate arrange
+#' @importFrom dplyr slice mutate relocate arrange n
 #' @importFrom tidyr pivot_longer
 getparam <- function(data, K = 10, delta = 1e4) {
   res |> 
     tibble::as_tibble() |>
     dplyr::slice(2:n()) |>
     dplyr::mutate(
-      vs_name = rep(1:ncol(.), each = K),
-      start = rep(rep(0:(K - 1)), ncol(.)) * delta * 2 + 1,
-      stop = rep(rep(1:K), ncol(.)) * delta * 2
+      vs_name = rep(1:ncol(res), each = K),
+      start = rep(rep(0:(K - 1)), ncol(res)) * delta * 2 + 1,
+      stop = rep(rep(1:K), ncol(res)) * delta * 2
     ) |>
     dplyr::mutate(
       vs_name = levels(as.factor(colnames(res)))[vs_name],
