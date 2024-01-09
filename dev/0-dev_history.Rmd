@@ -7,6 +7,13 @@ editor_options:
 
 All commands that you use to use when developing packages...
 
+## Usethis setup
+
+```{r dev-setup}
+usethis::proj_set(getwd(), force = TRUE)
+usethis::proj_sitrep()
+```
+
 # First time just after creating the project
 
 - Fill the following chunk to create the DESCRIPTION of your package
@@ -24,7 +31,9 @@ fusen::fill_description(
       person("Franck", "Picard", email = "franck.picard@ens-lyon.fr",
         role = c("aut"), comment = c(ORCID = "0000-0001-8084-5481"))
     ),
-    Version = "0.0.1"
+    Version = "0.0.1",
+    OS_type = "unix",
+    SystemRequirements = "cpp/clang, make"
   ),
   overwrite = TRUE
 )
