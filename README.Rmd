@@ -13,43 +13,65 @@ knitr::opts_chunk$set(
 )
 ```
 
-# hawkes.genomics
+# Hawkes genomics
 
-<!-- badges: start -->
-<!-- badges: end -->
+R package to Estimate parameters for a hawkes model over spatial positions [using this c++ implementation](https://github.com/fgindraud/hawkes/tree/master).
 
-The goal of hawkes.genomics is to ...
+## Requirement
+
+A C++ compiler supporting C++14 is required:
+
+- g++ >= 5.0
+- clang++ >= 3.4
+- for any other compiler, check that it supports the -std=c++14 flag
+
+R >= 4.3 (the package may works on older version of R)
 
 ## Installation
 
-You can install the development version of hawkes.genomics from [GitHub](https://github.com/) with:
+You need the package `remotes` to install `hawkesGenomics` from this repository
 
-``` r
-# install.packages("devtools")
-devtools::install_github("franckpicard/hawkes_genomics")
+```r
+install.packages("remotes")
+```
+
+Then you can install `hawkesGenomics` with this command
+
+```r
+remotes::install_git("https://github.com/franckpicard/hawkes_genomics")
 ```
 
 ## Example
 
-This is a basic example which shows you how to solve a common problem:
+We are going to analyse a subset of the replication origin on the chromosme 1
+of hg19.
 
-```{r example}
-library(hawkes.genomics)
-## basic example code
+## preprocess data
+
+```r
+beds <- preprocess_bed(
+  files = c(
+    system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
+    system.file("extdata", "CGI.bed.gz", package = "hawkesGenomics"),
+    system.file("extdata", "G4plus.bed.gz", package = "hawkesGenomics")
+  ),
+  names = c("Oris", "CGI", "G4plus")
+)
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`? You can include R chunks like so:
+## hawkes computation
 
-```{r cars}
-summary(cars)
+```r
+res <- compute_hawkes_histogram(
+  files = beds$preprocess_beds,
+  names = beds$names,
+  K = 5,
+  delta = 1e4
+)
 ```
 
-You'll still need to render `README.Rmd` regularly, to keep `README.md` up-to-date. `devtools::build_readme()` is handy for this.
+## plot data
 
-You can also embed plots, for example:
-
-```{r pressure, echo = FALSE}
-plot(pressure)
+```r
+plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```
-
-In that case, don't forget to commit and push the resulting figure files, so they display on GitHub and CRAN.
