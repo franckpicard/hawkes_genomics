@@ -52,7 +52,7 @@ of hg19.
 
 ## preprocess data
 
-```{r eval = F}
+```{r eval = T}
 beds <- preprocess_bed(
   files = c(
     system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
@@ -66,7 +66,7 @@ beds
 
 ## hawkes computation
 
-```{r eval = F}
+```{r eval = T}
 res <- compute_hawkes_histogram(
   files = beds$preprocess_beds,
   names = beds$names,
@@ -77,7 +77,7 @@ res <- compute_hawkes_histogram(
 
 ## plot data
 
-```{r eval = F}
+```{r eval = T}
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```
 

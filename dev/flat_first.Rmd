@@ -396,18 +396,17 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
 
 # Example
 
+We are going to analyse a subset of the replication origin on the chromosme 1
+of hg19.
+
 ## preprocess data
 
-```{r, eval = F}
+```{r, eval = T}
 beds <- preprocess_bed(
   files = c(
-
-    # system.file("extdata", "oris.bed", package = "hawkesGenomics"),
-    # system.file("extdata", "CGI.bed", package = "hawkesGenomics"),
-    # system.file("extdata", "G4plus.bed", package = "hawkesGenomics")
-    "inst/extdata/soris.bed.gz",
-    "inst/extdata/sCGI.bed.gz",
-    "inst/extdata/sG4plus.bed.gz"
+    system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
+    system.file("extdata", "CGI.bed.gz", package = "hawkesGenomics"),
+    system.file("extdata", "G4plus.bed.gz", package = "hawkesGenomics")
   ),
   names = c("Oris", "CGI", "G4plus")
 )
@@ -416,7 +415,7 @@ beds
 
 ## hawkes computation
 
-```{r, eval = F}
+```{r, eval = T}
 res <- compute_hawkes_histogram(
   files = beds$preprocess_beds,
   names = beds$names,
@@ -428,6 +427,6 @@ res <- compute_hawkes_histogram(
 ## plot data
 
 
-```{r, eval = F}
+```{r, eval = T}
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```
