@@ -136,8 +136,8 @@ pkgdown::build_site()
 devtools::build(vignettes = TRUE)
 
 # Share your package and its documentation on GitHub
-# usethis::create_github_token()
-# gitcreds::gitcreds_set()
+usethis::create_github_token()
+gitcreds::gitcreds_set()
 fusen::init_share_on_github()
 ```
 
