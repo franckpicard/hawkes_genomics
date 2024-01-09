@@ -1,64 +1,45 @@
----
-output: github_document
----
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-
-
-<!-- badges: start -->
-  [![Codecov test coverage](https://codecov.io/gh/franckpicard/hawkes_genomics/branch/main/graph/badge.svg)](https://app.codecov.io/gh/franckpicard/hawkes_genomics?branch=main)
-[![R-CMD-check](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml)
-<!-- badges: end -->
-
 # Hawkes genomics
 
-R package to Estimate parameters for a hawkes model over spatial positions [using this c++ implementation](https://github.com/fgindraud/hawkes/tree/master).
+R package to Estimate parameters for a hawkes model over spatial
+positions [using this c++
+implementation](https://github.com/fgindraud/hawkes/tree/master).
 
 ## Requirement
 
 A C++ compiler supporting C++14 is required:
 
-- g++ >= 5.0
-- clang++ >= 3.4
+- g++ \>= 5.0
+- clang++ \>= 3.4
 - for any other compiler, check that it supports the -std=c++14 flag
 
-R >= 4.3 (the package may works on older version of R)
+R \>= 4.3 (the package may works on older version of R)
 
 ## Installation
 
-You need the package `remotes` to install `hawkesGenomics` from this repository
+You need the package `remotes` to install `hawkesGenomics` from this
+repository
 
-```r
+``` r
 install.packages("remotes")
 ```
 
 Then you can install `hawkesGenomics` with this command
 
-```r
+``` r
 remotes::install_git("https://github.com/franckpicard/hawkes_genomics")
 ```
 
-## Documentation
-
-Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
-
-## Documentation
-
-Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
-
-## Documentation
-
-Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
-
 ## Example
 
-We are going to analyse a subset of the replication origin on the chromosme 1
-of hg19.
+We are going to analyse a subset of the replication origin on the
+chromosme 1 of hg19.
 
 ## preprocess data
 
-```r
+``` r
 beds <- preprocess_bed(
   files = c(
     system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
@@ -71,7 +52,7 @@ beds <- preprocess_bed(
 
 ## hawkes computation
 
-```r
+``` r
 res <- compute_hawkes_histogram(
   files = beds$preprocess_beds,
   names = beds$names,
@@ -82,6 +63,6 @@ res <- compute_hawkes_histogram(
 
 ## plot data
 
-```r
+``` r
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```
