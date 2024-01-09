@@ -13,6 +13,10 @@ knitr::opts_chunk$set(
 )
 ```
 
+<!-- badges: start -->
+[![R-CMD-check](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 # Hawkes genomics
 
 R package to Estimate parameters for a hawkes model over spatial positions [using this c++ implementation](https://github.com/fgindraud/hawkes/tree/master).
