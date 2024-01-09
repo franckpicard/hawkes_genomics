@@ -13,6 +13,11 @@ knitr::opts_chunk$set(
 )
 ```
 
+<!-- badges: start -->
+  [![Codecov test coverage](https://codecov.io/gh/franckpicard/hawkes_genomics/branch/main/graph/badge.svg)](https://app.codecov.io/gh/franckpicard/hawkes_genomics?branch=main)
+[![R-CMD-check](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml)
+<!-- badges: end -->
+
 # Hawkes genomics
 
 R package to Estimate parameters for a hawkes model over spatial positions [using this c++ implementation](https://github.com/fgindraud/hawkes/tree/master).
@@ -40,6 +45,10 @@ Then you can install `hawkesGenomics` with this command
 ```r
 remotes::install_git("https://github.com/franckpicard/hawkes_genomics")
 ```
+
+## Documentation
+
+Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
 
 ## Documentation
 
