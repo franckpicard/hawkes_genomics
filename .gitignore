@@ -9,6 +9,7 @@ renv
 .Rprofile
 inst/doc
 src/hawkes_bin
-src/hawkes/*
+src/hawkes
+inst/extdata/*
 .Rdata
 .quarto
