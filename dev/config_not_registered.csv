@@ -1,4 +1,5 @@
 "type","path","origin"
+"R","R/check_files.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/compute_hawkes_histogram.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/convolve_with_kernel.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/filter_windows.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"

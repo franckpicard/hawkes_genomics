@@ -100,6 +100,32 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 }
 ```
 
+## check_files
+
+```{r function-check_files}
+#' check_file, check is file path are correct
+#'
+#' @param files a vector of bed files path
+#'
+#' @return
+#' save a list of preprocessed bed files 
+#' @export
+#'
+check_files <- function(files) {
+  for (file in files) {
+    if (!file.exists(file)) {
+      stop(
+        paste(
+          file,
+          " does not exist in current working directory ('",
+          getwd(), "')."
+        )
+      )
+    }
+  }
+}
+```
+
 ## preprocess_bed
 
 ```{r function-preprocess_bed}
@@ -122,10 +148,11 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #' @importFrom tidyr unnest
 preprocess_bed <- function(
   files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
+  check_file(files)
   tibble::tibble(
     files = files,
     names = names
-  ) |> 
+  ) |>
     dplyr::mutate(
       bed = purrr::map(files, read_bed)
     ) |>
@@ -367,21 +394,18 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
 
 ## preprocess data
 
-  # files = c(
-  #   system.file("extdata", "enhancer.bed", package="hawkes.genomics"),
-  #   system.file("extdata", "coding_prom.bed", package="hawkes.genomics"),
-  #   system.file("extdata", "sin3peaks.bed", package="hawkes.genomics")
-  # ),
-
 ```{r, eval = F}
 beds <- preprocess_bed(
-  # files = c("bed/enhancer.bed", "bed/coding_prom.bed", "bed/sin3peaks.bed"),
   files = c(
-    system.file("extdata", "enhancer.bed", package="hawkes.genomics"),
-    system.file("extdata", "coding_prom.bed", package="hawkes.genomics"),
-    system.file("extdata", "sin3peaks.bed", package="hawkes.genomics")
+
+    # system.file("extdata", "oris.bed", package = "hawkesGenomics"),
+    # system.file("extdata", "CGI.bed", package = "hawkesGenomics"),
+    # system.file("extdata", "G4plus.bed", package = "hawkesGenomics")
+    "inst/extdata/soris.bed",
+    "inst/extdata/sCGI.bed",
+    "inst/extdata/sG4plus.bed"
   ),
-  names = c("enhancer", "prom", "sin3"),
+  names = c("Oris", "CGI", "G4plus"),
 )
 beds
 ```
@@ -391,7 +415,9 @@ beds
 ```{r, eval = F}
 res <- compute_hawkes_histogram(
   files = beds$preprocess_beds,
-  names = beds$names
+  names = beds$names,
+  K = 5,
+  delta = 1e4
 )
 ```
 
@@ -399,5 +425,5 @@ res <- compute_hawkes_histogram(
 
 
 ```{r, eval = F}
-plot_convolution(res, width = beds$interval_size)
+plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```

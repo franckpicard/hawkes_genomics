@@ -19,10 +19,11 @@
 #' @importFrom tidyr unnest
 preprocess_bed <- function(
   files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
+  check_file(files)
   tibble::tibble(
     files = files,
     names = names
-  ) |> 
+  ) |>
     dplyr::mutate(
       bed = purrr::map(files, read_bed)
     ) |>
