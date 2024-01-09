@@ -47,6 +47,10 @@ Full documentation website on: https://git@github.com:franckpicard/hawkes_genomi
 
 Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
 
+## Documentation
+
+Full documentation website on: https://git@github.com:franckpicard/hawkes_genomics.github.io/git@github.com:franckpicard/hawkes_genomics
+
 ## Example
 
 We are going to analyse a subset of the replication origin on the chromosme 1
