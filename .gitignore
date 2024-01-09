@@ -13,3 +13,4 @@ src/hawkes
 inst/extdata/*
 .Rdata
 .quarto
+docs
