@@ -22,6 +22,8 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: install deps
+        run: apt update && apt install -y build build-essential
       - uses: actions/checkout@v3
 
       - uses: r-lib/actions/setup-pandoc@v2
