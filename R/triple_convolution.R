@@ -10,6 +10,7 @@
 #'
 #' @return
 #' Median of vector x
+#' @importFrom stats convolve
 #' @export
 #'
 triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {

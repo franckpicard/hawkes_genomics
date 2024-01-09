@@ -148,7 +148,7 @@ check_files <- function(files) {
 #' @importFrom tidyr unnest
 preprocess_bed <- function(
   files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
-  check_file(files)
+  check_files(files)
   tibble::tibble(
     files = files,
     names = names
@@ -267,6 +267,7 @@ uniform_kernel <- function(x, width){
 #'
 #' @return
 #' Median of vector x
+#' @importFrom stats convolve
 #' @export
 #'
 triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
