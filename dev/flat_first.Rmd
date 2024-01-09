@@ -84,11 +84,14 @@ filter_windows <- function(data, maxlag) {
 #'
 #' @return
 #' a path
-#' @importFrom stringr str_split str_c
+#' @importFrom stringr str_split str_c str_remove
 #' @importFrom vroom vroom_write
 write_bed <- function(path, data, outdir, prefix = "clean_") {
   path <- stringr::str_split(path, "/")[[1]]
-  path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
+  path <- stringr::str_c(
+    outdir, "/",
+    prefix, stringr::str_remove(path[length(path)], ".gz$")
+  )
   vroom::vroom_write(
     data,
     file = path,
@@ -402,11 +405,11 @@ beds <- preprocess_bed(
     # system.file("extdata", "oris.bed", package = "hawkesGenomics"),
     # system.file("extdata", "CGI.bed", package = "hawkesGenomics"),
     # system.file("extdata", "G4plus.bed", package = "hawkesGenomics")
-    "inst/extdata/soris.bed",
-    "inst/extdata/sCGI.bed",
-    "inst/extdata/sG4plus.bed"
+    "inst/extdata/soris.bed.gz",
+    "inst/extdata/sCGI.bed.gz",
+    "inst/extdata/sG4plus.bed.gz"
   ),
-  names = c("Oris", "CGI", "G4plus"),
+  names = c("Oris", "CGI", "G4plus")
 )
 beds
 ```

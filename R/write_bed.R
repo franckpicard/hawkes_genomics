@@ -9,12 +9,15 @@
 #'
 #' @return
 #' a path
-#' @importFrom stringr str_split str_c
+#' @importFrom stringr str_split str_c str_remove
 #' @importFrom vroom vroom_write
 #' @noRd
 write_bed <- function(path, data, outdir, prefix = "clean_") {
   path <- stringr::str_split(path, "/")[[1]]
-  path <- stringr::str_c(outdir, "/", prefix, path[length(path)])
+  path <- stringr::str_c(
+    outdir, "/",
+    prefix, stringr::str_remove(path[length(path)], ".gz$")
+  )
   vroom::vroom_write(
     data,
     file = path,
