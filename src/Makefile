@@ -1,9 +1,10 @@
 all: ../inst/bin/hawkes_bin
 
 ../inst/bin/hawkes_bin: hawkes/hawkes
-	mkdir -p ../inst/bin/
-	mv hawkes/hawkes ../inst/bin/hawkes_bin
+	mkdir -p ../inst/bin/ \
+	&& mv hawkes/hawkes ../inst/bin/hawkes_bin
 
-hawkes/hawkes: hawkes/Makefile
-	cd hawkes \
+hawkes/hawkes: Makefile_hawkes hawkes/Makefile
+	cp Makefile_hawkes hawkes/Makefile \
+	&& cd hawkes \
 	&& make

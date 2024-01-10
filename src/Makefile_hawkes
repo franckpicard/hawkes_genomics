@@ -1,0 +1,7 @@
+all: hawkes
+
+eigen-3.3.9: eigen-3.3.9.tar.gz
+	tar xf eigen-3.3.9.tar.gz
+
+hawkes: src/main.cpp eigen-3.3.9 Makefile
+	$(CXX) -std=c++14 -Wall -Wextra -O3 -DNDEBUG -I eigen-3.3.9 -o hawkes src/main.cpp
