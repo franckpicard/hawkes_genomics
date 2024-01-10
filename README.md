@@ -2,6 +2,8 @@
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 <!-- badges: start -->
 
+[![Codecov test
+coverage](https://codecov.io/gh/franckpicard/hawkes_genomics/branch/main/graph/badge.svg)](https://app.codecov.io/gh/franckpicard/hawkes_genomics?branch=main)
 [![R-CMD-check](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
@@ -44,6 +46,8 @@ chromosme 1 of hg19.
 ## preprocess data
 
 ``` r
+library("hawkesGenomics")
+
 beds <- preprocess_bed(
   files = c(
     system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
