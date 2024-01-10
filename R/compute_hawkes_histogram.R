@@ -23,7 +23,7 @@ compute_hawkes_histogram <- function(
   cmd <- c(cmd, paste("-kernel", kernel))
   cmd <- c(cmd, "-lambda 1")
   system2(
-    file.path(find.package(package = "hawkesGenomics"), "exec", "hawkes_bin"),
+    file.path(find.package(package = "hawkesGenomics"), "bin", "hawkes_bin"),
     cmd,
     stdout = TRUE
   ) |>

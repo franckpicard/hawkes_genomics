@@ -1,1 +1,2 @@
-exec/hawkes_bin
+inst/bin/hawkes_bin
+bin/hawkes_bin
