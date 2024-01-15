@@ -83,7 +83,7 @@
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"remotes"</span><span class="op">)</span></span></code></pre></div>
 <p>Then you can install <code>hawkesGenomics</code> with this command</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_git</span><span class="op">(</span><span class="st">"https://github.com/franckpicard/hawkes_genomics"</span><span class="op">)</span></span></code></pre></div>
+<code class="sourceCode R"><span><span class="fu">remotes</span><span class="fu">::</span><span class="fu">install_git</span><span class="op">(</span><span class="st">"https://github.com/franckpicard/hawkes_genomics"</span>, force <span class="op">=</span> <span class="cn">T</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
@@ -120,6 +120,8 @@
 <h2 id="plot-data">plot data<a class="anchor" aria-label="anchor" href="#plot-data"></a>
 </h2>
 <div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/plot_histogram.html">plot_histogram</a></span><span class="op">(</span><span class="va">res</span>, K <span class="op">=</span> <span class="fl">5</span>, delta <span class="op">=</span> <span class="fl">1e4</span><span class="op">)</span></span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/plot_convolution.html">plot_convolution</a></span><span class="op">(</span><span class="va">res</span>, width <span class="op">=</span> <span class="va">beds</span><span class="op">$</span><span class="va">interval_size</span>, K <span class="op">=</span> <span class="fl">5</span>, delta <span class="op">=</span> <span class="fl">1e4</span><span class="op">)</span></span></code></pre></div>
 </div>
 </div>
