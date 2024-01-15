@@ -11,8 +11,10 @@
 #' a path
 #' @importFrom stringr str_split str_c str_remove
 #' @importFrom vroom vroom_write
+#' @importFrom checkmate assertAccess
 #' @noRd
 write_bed <- function(path, data, outdir, prefix = "clean_") {
+  checkmate::assertAccess(outdir, access = "w")
   path <- stringr::str_split(path, "/")[[1]]
   path <- stringr::str_c(
     outdir, "/",

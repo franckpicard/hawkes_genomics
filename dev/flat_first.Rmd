@@ -27,7 +27,9 @@ pkgload::load_all(export_all = FALSE)
 #' @return
 #' tibble
 #' @importFrom vroom vroom
+#' @importFrom checkmate assertAccess
 read_bed <- function(path) {
+  checkmate::assertAccess(path, "r")
   vroom::vroom(
     path,
     col_names = c("chr", "start", "stop"),
@@ -86,7 +88,9 @@ filter_windows <- function(data, maxlag) {
 #' a path
 #' @importFrom stringr str_split str_c str_remove
 #' @importFrom vroom vroom_write
+#' @importFrom checkmate assertAccess
 write_bed <- function(path, data, outdir, prefix = "clean_") {
+  checkmate::assertAccess(outdir, access = "w")
   path <- stringr::str_split(path, "/")[[1]]
   path <- stringr::str_c(
     outdir, "/",
@@ -149,9 +153,11 @@ check_files <- function(files) {
 #' @importFrom dplyr mutate 
 #' @importFrom purrr map map2
 #' @importFrom tidyr unnest
+#' @importFrom checkmate assertCount
 preprocess_bed <- function(
   files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
   check_files(files)
+  checkmate::assertCount(maxlag, positive = TRUE)
   tibble::tibble(
     files = files,
     names = names
@@ -182,10 +188,14 @@ preprocess_bed <- function(
 #' @return
 #' save a results file
 #' @export
+#' @importFrom checkmate assertCount
 #'
 compute_hawkes_histogram <- function(
     files, names = files, K = 10, delta = 1e4,
   kernel = "heterogeneous_interval") {
+  checkmate::assertAccess(file, "r") 
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
   cmd <- c()
   for (bed in files) {
     cmd <- c(cmd, paste("-b", bed))
@@ -362,9 +372,11 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
 #' @importFrom dplyr mutate filter
 #' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
 #' @importFrom ggplot2 theme_bw element_text
-
+#' @importFrom checkmate assertCount
   
 plot_histogram <- function(data, K = 10, delta = 1e4){
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
   data <- getparam(data = data, K = K, delta = delta) |>
     tidyr::pivot_longer(
       cols = c(start, stop),
@@ -417,7 +429,10 @@ plot_histogram <- function(data, K = 10, delta = 1e4){
 #' @importFrom dplyr mutate filter
 #' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
 #' @importFrom ggplot2 theme_bw element_text
+#' @importFrom checkmate assertCount
 plot_convolution <- function(data, width, K = 10, delta = 1e4){
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
   data <- convolve_with_kernel(
     data = data, width = width, K = K, delta = delta
     ) |> 

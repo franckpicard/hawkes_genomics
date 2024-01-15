@@ -6,8 +6,10 @@
 #' @return
 #' tibble
 #' @importFrom vroom vroom
+#' @importFrom checkmate assertAccess
 #' @noRd
 read_bed <- function(path) {
+  checkmate::assertAccess(path, "r")
   vroom::vroom(
     path,
     col_names = c("chr", "start", "stop"),

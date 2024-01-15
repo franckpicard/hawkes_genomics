@@ -17,9 +17,11 @@
 #' @importFrom dplyr mutate 
 #' @importFrom purrr map map2
 #' @importFrom tidyr unnest
+#' @importFrom checkmate assertCount
 preprocess_bed <- function(
   files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
   check_files(files)
+  checkmate::assertCount(maxlag, positive = TRUE)
   tibble::tibble(
     files = files,
     names = names

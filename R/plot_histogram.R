@@ -16,9 +16,11 @@
 #' @importFrom dplyr mutate filter
 #' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
 #' @importFrom ggplot2 theme_bw element_text
-
+#' @importFrom checkmate assertCount
   
 plot_histogram <- function(data, K = 10, delta = 1e4){
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
   data <- getparam(data = data, K = K, delta = delta) |>
     tidyr::pivot_longer(
       cols = c(start, stop),

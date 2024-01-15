@@ -11,10 +11,14 @@
 #' @return
 #' save a results file
 #' @export
+#' @importFrom checkmate assertCount
 #'
 compute_hawkes_histogram <- function(
     files, names = files, K = 10, delta = 1e4,
   kernel = "heterogeneous_interval") {
+  checkmate::assertAccess(file, "r") 
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
   cmd <- c()
   for (bed in files) {
     cmd <- c(cmd, paste("-b", bed))

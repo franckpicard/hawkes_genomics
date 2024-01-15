@@ -10,6 +10,7 @@ Authors@R: c(
 Description: R wrappers to compute spacial correlogram from bed files.
 License: AGPL (>= 3)
 Imports: 
+    checkmate,
     dplyr,
     ggplot2,
     purrr,
