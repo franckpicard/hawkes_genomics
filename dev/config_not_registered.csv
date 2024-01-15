@@ -5,6 +5,7 @@
 "R","R/filter_windows.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/getparam.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/plot_convolution.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
+"R","R/plot_histogram.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/preprocess_bed.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/read_bed.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"
 "R","R/triple_convolution.R","Possibly deprecated file. Please check its link with detected flat source: dev/flat_first.Rmd"

@@ -16,12 +16,16 @@
 #' @importFrom dplyr mutate filter
 #' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
 #' @importFrom ggplot2 theme_bw element_text
-plot_convolution <- function(data, width, K = 10, delta = 1e4){
-  data <- convolve_with_kernel(
-    data = data, width = width, K = K, delta = delta
-    ) |> 
-    tidyr::unnest(convolution) |>
+
+  
+plot_histogram <- function(data, K = 10, delta = 1e4){
+  data <- getparam(data = data, K = K, delta = delta) |>
+    tidyr::pivot_longer(
+      cols = c(start, stop),
+      names_to = "coordinates",
+      values_to = "position") |>
     dplyr::mutate(
+      position = position - max(position) / 2,
       title = paste(
         name, "->", vs_name, "|", paste(
           setdiff(beds$names, c(name, vs_name)), collapse = ", "
@@ -30,12 +34,12 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
     )
   ggplot2::ggplot() +
   ggplot2::geom_ribbon(
-    data = data |> dplyr::filter(convolution >= 0),
-    ggplot2::aes(x = position, ymin = 0, ymax = convolution),
+    data = data |> dplyr::filter(value >= 0),
+    ggplot2::aes(x = position, ymin = 0, ymax = value),
     fill = "#EABDBA", color = "black") +
   ggplot2::geom_ribbon(
-    data = data |> dplyr::filter(convolution <= 0),
-    ggplot2::aes(x = position, ymin = convolution, ymax = 0),
+    data = data |> dplyr::filter(value <= 0),
+    ggplot2::aes(x = position, ymin = value, ymax = 0),
     fill = "#8EBBF5", color = "black") +
   ggplot2::geom_vline(
     xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +

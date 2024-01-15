@@ -35,7 +35,7 @@ install.packages("remotes")
 Then you can install `hawkesGenomics` with this command
 
 ``` r
-remotes::install_git("https://github.com/franckpicard/hawkes_genomics")
+remotes::install_git("https://github.com/franckpicard/hawkes_genomics", force = T)
 ```
 
 ## Example
@@ -70,6 +70,10 @@ res <- compute_hawkes_histogram(
 ```
 
 ## plot data
+
+``` r
+plot_histogram(res, K = 5, delta = 1e4)
+```
 
 ``` r
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)

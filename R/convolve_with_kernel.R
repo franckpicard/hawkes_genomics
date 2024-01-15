@@ -4,7 +4,7 @@
 #' processus
 #'
 #' @param data results of compute_hawkes_histogram
-#' @param width a vector of beds interval width (in the same orde as the data columns)
+#' @param width a vector of beds interval width (in the same order as the data columns)
 #' @param K (default: 10) size of the histogram bins
 #' @param delta (default: 1e4) max range to consider
 #' 

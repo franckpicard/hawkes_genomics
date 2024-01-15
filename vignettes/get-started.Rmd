@@ -42,6 +42,8 @@ library(hawkesGenomics)
 
 ## convolve_with_kernel
 
+## plot_histogram
+
 ## plot_convolution
 
 # Example
