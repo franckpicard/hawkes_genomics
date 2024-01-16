@@ -60,6 +60,7 @@
 </nav><div class="container template-home">
 <div class="row">
   <main id="main" class="col-md-9">
+<p><a href="https://franckpicard.github.io/hawkes_genomics/" class="external-link">HawkGenomics website</a></p>
 <div class="section level1">
 <div class="page-header"><h1 id="hawkes-genomics">Hawkes genomics<a class="anchor" aria-label="anchor" href="#hawkes-genomics"></a>
 </h1></div>
@@ -89,14 +90,14 @@
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
 </h2>
 <p>We are going to analyse a subset of the replication origin on the chromosme 1 of hg19.</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="st">"hawkesGenomics"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="preprocess-data">preprocess data<a class="anchor" aria-label="anchor" href="#preprocess-data"></a>
 </h2>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="st">"hawkesGenomics"</span><span class="op">)</span></span>
-<span></span>
-<span><span class="va">beds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/preprocess_bed.html">preprocess_bed</a></span><span class="op">(</span></span>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">beds</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/preprocess_bed.html">preprocess_bed</a></span><span class="op">(</span></span>
 <span>  files <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"oris.bed.gz"</span>, package <span class="op">=</span> <span class="st">"hawkesGenomics"</span><span class="op">)</span>,</span>
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/system.file.html" class="external-link">system.file</a></span><span class="op">(</span><span class="st">"extdata"</span>, <span class="st">"CGI.bed.gz"</span>, package <span class="op">=</span> <span class="st">"hawkesGenomics"</span><span class="op">)</span>,</span>
@@ -108,7 +109,7 @@
 <div class="section level2">
 <h2 id="hawkes-computation">hawkes computation<a class="anchor" aria-label="anchor" href="#hawkes-computation"></a>
 </h2>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">res</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/compute_hawkes_histogram.html">compute_hawkes_histogram</a></span><span class="op">(</span></span>
 <span>  files <span class="op">=</span> <span class="va">beds</span><span class="op">$</span><span class="va">preprocess_beds</span>,</span>
 <span>  names <span class="op">=</span> <span class="va">beds</span><span class="op">$</span><span class="va">names</span>,</span>
@@ -119,10 +120,12 @@
 <div class="section level2">
 <h2 id="plot-data">plot data<a class="anchor" aria-label="anchor" href="#plot-data"></a>
 </h2>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="reference/plot_histogram.html">plot_histogram</a></span><span class="op">(</span><span class="va">res</span>, K <span class="op">=</span> <span class="fl">5</span>, delta <span class="op">=</span> <span class="fl">1e4</span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/plot_histogram.html">plot_histogram</a></span><span class="op">(</span><span class="va">res</span>, K <span class="op">=</span> <span class="fl">5</span>, delta <span class="op">=</span> <span class="fl">1e4</span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-unnamed-chunk-5-1.png" width="100%"></p>
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/plot_convolution.html">plot_convolution</a></span><span class="op">(</span><span class="va">res</span>, width <span class="op">=</span> <span class="va">beds</span><span class="op">$</span><span class="va">interval_size</span>, K <span class="op">=</span> <span class="fl">5</span>, delta <span class="op">=</span> <span class="fl">1e4</span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-unnamed-chunk-6-1.png" width="100%"></p>
 </div>
 </div>
 
