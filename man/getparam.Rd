@@ -23,5 +23,5 @@ Median of vector x
 \description{
 getparam
 
-getparam
+getparam format results from the output of compute_hawkes_histogram
 }
