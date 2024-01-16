@@ -16,10 +16,6 @@ pkgload::load_all(export_all = FALSE)
 ```
 
 
-# Functions
-
-## read_bed
-
 ```{r function-read_bed}
 #' helper function for preprocess_bed to quickly load bed files
 #'
@@ -38,8 +34,6 @@ read_bed <- function(path) {
   )
 }
 ```
-
-## filter_windows
 
 ```{r function-filter_windows}
 #' helper function for preprocess_bed to compute a sliding windows along all
@@ -75,7 +69,7 @@ filter_windows <- function(data, maxlag) {
     tidyr::nest(beds = c(chr, start, stop))
 }
 ```
-## write_bed
+
 ```{r function-write_bed}
 #' helper function for preprocess_bed to write bed files
 #'
@@ -107,8 +101,6 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 }
 ```
 
-## check_files
-
 ```{r function-check_files}
 #' check_file, check is file path are correct
 #'
@@ -132,8 +124,6 @@ check_files <- function(files) {
   }
 }
 ```
-
-## preprocess_bed
 
 ```{r function-preprocess_bed}
 #' preprocess_bed preprocess bed file to remove windows of size maxlag for chich
@@ -174,7 +164,6 @@ preprocess_bed <- function(
   tidyr::unnest(preprocess_beds)
 }
 ```
-## compute_hawkes_histogram
 
 ```{r function-compute_hawkes_histogram}
 #' compute_hawkes_histogram
@@ -193,7 +182,7 @@ preprocess_bed <- function(
 compute_hawkes_histogram <- function(
     files, names = files, K = 10, delta = 1e4,
   kernel = "heterogeneous_interval") {
-  checkmate::assertAccess(file, "r") 
+  checkmate::assertAccess(files, "r")
   checkmate::assertCount(K, positive = TRUE)
   checkmate::assertCount(delta, positive = TRUE)
   cmd <- c()
@@ -214,8 +203,6 @@ compute_hawkes_histogram <- function(
 }
 
 ```
-
-## getparam
 
 ```{r function-getparam}
 #' getparam
@@ -249,9 +236,6 @@ getparam <- function(data, K = 10, delta = 1e4) {
 }
 ```
 
-
-## uniform_kernel
-
 ```{r function-uniform_kernel}
 #' the uniform kernel of width width 
 #'
@@ -266,8 +250,6 @@ uniform_kernel <- function(x, width){
   1 * (abs(x) <= width) / width
 }
 ```
-
-## triple_convolution
 
 ```{r function-triple_convolution}
 #' the uniform kernel of width width 
@@ -289,8 +271,6 @@ triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
     convolve(uniform_kernel(position, vs_width))
 }
 ```
-
-## convolve_with_kernel
 
 ```{r function-convolve_with_kernel}
 #' hw convolution of the h interaction function with the kernel of the 2
@@ -353,8 +333,6 @@ convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
 
 ```
 
-## plot_histogram
-
 ```{r function-plot_histogram}
 #' hw convolution of the h interaction function with the kernel of the 2
 #' processus
@@ -409,8 +387,6 @@ plot_histogram <- function(data, K = 10, delta = 1e4){
   ))
 }
 ```
-
-## plot_convolution
 
 ```{r function-plot_convolution}
 #' hw convolution of the h interaction function with the kernel of the 2
@@ -469,6 +445,10 @@ plot_convolution <- function(data, width, K = 10, delta = 1e4){
 We are going to analyse a subset of the replication origin on the chromosme 1
 of hg19.
 
+```{r, eval = T}
+library(hawkesGenomics)
+```
+
 ## preprocess data
 
 ```{r, eval = T}
@@ -496,7 +476,10 @@ res <- compute_hawkes_histogram(
 
 ## plot data
 
+```{r eval = F}
+plot_histogram(res, K = 5, delta = 1e4)
+```
 
-```{r, eval = T}
+```{r, eval = F}
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```

@@ -17,3 +17,388 @@ read_bed <- function(path) {
     col_select = c("chr", "start", "stop"),
   )
 }
+
+#' helper function for preprocess_bed to compute a sliding windows along all
+#' the beds and filter out position present in only one beds file
+#'
+#' @param data a tibble
+#' @param maxlag the size of the windows
+#'
+#' @return
+#' tibble
+#' @importFrom dplyr group_by arrange mutate filter
+#' @importFrom tidyr nest
+#' @noRd
+filter_windows <- function(data, maxlag) {
+  data |> 
+    dplyr::group_by(chr) |>
+    dplyr::arrange(start, stop, .by_group = TRUE) |>
+    dplyr::mutate(
+      window = purrr::pmap_int(
+        list(names, start, stop), function(names, start, stop, max_lag) {
+          min(start) %/% max_lag + 1
+        }, max_lag = maxlag)
+    ) |> 
+    dplyr::group_by(chr, window) |>
+    dplyr::mutate(
+      count = length(levels(as.factor(names))),
+    ) |> 
+    dplyr::filter(count > 1) |>
+    dplyr::group_by(files) |>
+    dplyr::select(files, names, chr, start, stop) |>
+    dplyr::mutate(
+      interval_size = mean(stop - start)
+    ) |> 
+    tidyr::nest(beds = c(chr, start, stop))
+}
+
+#' helper function for preprocess_bed to write bed files
+#'
+#' @param path a bed file path
+#' @param data a tibble of bed information
+#' @param outdir the path were to write the results
+#' @param prefix (default: "clean_") the prefix of the preprocessed bed file
+#'
+#' @return
+#' a path
+#' @importFrom stringr str_split str_c str_remove
+#' @importFrom vroom vroom_write
+#' @importFrom checkmate assertPathForOutput
+#' @noRd
+write_bed <- function(path, data, outdir, prefix = "clean_") {
+  path <- stringr::str_split(path, "/")[[1]]
+  path <- stringr::str_c(
+    outdir, "/",
+    prefix, stringr::str_remove(path[length(path)], ".gz$")
+  )
+  checkmate::assertPathForOutput(path)
+  vroom::vroom_write(
+    data,
+    file = path,
+    delim = "\t",
+    col_names = FALSE,
+    quote = "none"
+  )
+  return(path)
+}
+
+#' check_file, check is file path are correct
+#'
+#' @param files a vector of bed files path
+#'
+#' @return
+#' save a list of preprocessed bed files 
+#' @export
+#'
+check_files <- function(files) {
+  for (file in files) {
+    if (!file.exists(file)) {
+      stop(
+        paste(
+          file,
+          " does not exist in current working directory ('",
+          getwd(), "')."
+        )
+      )
+    }
+  }
+}
+
+#' preprocess_bed preprocess bed file to remove windows of size maxlag for chich
+#' there is no signal or only signal in one sample
+#'
+#' @param files a vector of bed files path
+#' @param names (default: files) a list of names for the sample
+#' @param maxlag (default: 1e5) the size of the windows
+#' @param prefix (default: "clean_") the prefix of the preprocessed bed file
+#' @param outdir (default: "tempdir()") path for the preprocessed bed files
+#'
+#' @return
+#' save a list of preprocessed bed files 
+#' @export
+#'
+#' @importFrom tibble tibble
+#' @importFrom dplyr mutate 
+#' @importFrom purrr map map2
+#' @importFrom tidyr unnest
+#' @importFrom checkmate assertCount
+preprocess_bed <- function(
+  files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
+  check_files(files)
+  checkmate::assertCount(maxlag, positive = TRUE)
+  tibble::tibble(
+    files = files,
+    names = names
+  ) |>
+    dplyr::mutate(
+      bed = purrr::map(files, read_bed)
+    ) |>
+  tidyr::unnest(cols = c(bed)) |>
+  filter_windows(maxlag = maxlag) |>
+  dplyr::mutate(
+    preprocess_beds = purrr::map2(
+        files, beds, write_bed, outdir = outdir, prefix = prefix)
+  ) |>
+  tidyr::unnest(preprocess_beds)
+}
+
+#' compute_hawkes_histogram
+#'
+#' @param files a vector of bed files path
+#' @param names (default: files) names of the samples
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' @param kernel (default: "heterogeneous_interval") kernel for the computation
+#'
+#' @return
+#' save a results file
+#' @export
+#' @importFrom checkmate assertCount
+#'
+compute_hawkes_histogram <- function(
+    files, names = files, K = 10, delta = 1e4,
+  kernel = "heterogeneous_interval") {
+  checkmate::assertAccess(files, "r")
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
+  cmd <- c()
+  for (bed in files) {
+    cmd <- c(cmd, paste("-b", bed))
+  }
+  cmd <- c(cmd, paste("-histogram", K, delta))
+  cmd <- c(cmd, paste("-kernel", kernel))
+  cmd <- c(cmd, "-lambda 1")
+  system2(
+    file.path(find.package(package = "hawkesGenomics"), "bin", "hawkes_bin"),
+    cmd,
+    stdout = TRUE
+  ) |>
+  textConnection() |>
+  read.table(col.names = names) |>
+  as.matrix()
+}
+
+
+#' getparam
+#'
+#' @param data a matrix of parameters 
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' @return
+#' Median of vector x
+#' @export
+#'
+#' @importFrom tibble as_tibble
+#' @importFrom dplyr slice mutate relocate arrange n
+#' @importFrom tidyr pivot_longer
+getparam <- function(data, K = 10, delta = 1e4) {
+  res |> 
+    tibble::as_tibble() |>
+    dplyr::slice(2:n()) |>
+    dplyr::mutate(
+      vs_name = rep(1:ncol(res), each = K),
+      start = rep(rep(0:(K - 1)), ncol(res)) * delta * 2 + 1,
+      stop = rep(rep(1:K), ncol(res)) * delta * 2
+    ) |>
+    dplyr::mutate(
+      vs_name = levels(as.factor(colnames(res)))[vs_name],
+    ) |>
+    tidyr::pivot_longer(cols = !c(vs_name, start, stop)) |>
+    dplyr::relocate(name) |>
+    dplyr::arrange(name, vs_name, start, stop)
+  
+}
+
+#' the uniform kernel of width width 
+#'
+#' @param x vector of data
+#' @param width width of the uniform kernel
+#'
+#' @return
+#' Median of vector x
+#' @export
+#'
+uniform_kernel <- function(x, width){
+  1 * (abs(x) <= width) / width
+}
+
+#' the uniform kernel of width width 
+#'
+#' @param position position on which to convolve
+#' @param x interaction function parameter
+#' @param width width of the uniform kernel for the first process
+#' @param vs_width width of the uniform kernel for the second process 
+#' @param delta (default: 1e4) max range to consider
+#'
+#' @return
+#' Median of vector x
+#' @importFrom stats convolve
+#' @export
+#'
+triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
+  (x / sqrt(delta)) |>
+    convolve(uniform_kernel(position, width)) |>
+    convolve(uniform_kernel(position, vs_width))
+}
+
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param data results of compute_hawkes_histogram
+#' @param width a vector of beds interval width (in the same order as the data columns)
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' 
+#' @return
+#' tibble
+#' @export
+#'
+#' @importFrom dplyr group_by mutate select
+#' @importFrom purrr map_dbl map2 map
+#' @importFrom tidyr nest unnest
+convolve_with_kernel <- function(data, width, K = 10, delta = 1e4) {
+  getparam(data, K = K, delta = delta) |> 
+  dplyr::group_by(name, vs_name) |>
+  dplyr::mutate(
+    width = purrr::map_dbl(name, function(x, width = width, names = names) {
+        width[which(names == x)]
+      }, width = width, names = colnames(data)
+    ),
+    vs_width = purrr::map_dbl(
+        vs_name, function(x, width = width, names = names) {
+        width[which(names == x)]
+      }, width = width, names = colnames(data)
+    )
+    
+  ) |> 
+  dplyr::group_by(name, vs_name) |>
+  tidyr::nest(params = c(value, width, vs_width, start, stop)) |>
+  dplyr::mutate(
+    convolution = purrr::map(
+      params,
+      function(params, delta = delta, K = K) {
+         params |>
+          dplyr::mutate(
+            position = purrr::map2(
+              start, stop, function(x, y) {
+                x:y
+              })
+          ) |>
+          tidyr::unnest(c(position)) |>
+          dplyr::mutate(
+            convolution = triple_convolution(
+                position, value, width, vs_width, delta
+            )
+          ) |>
+        dplyr::select(c(position, convolution)) |>
+        dplyr::mutate(
+          position = position - max(position) / 2,
+        )
+      }, delta = delta, K = K
+    )
+  )
+}
+
+
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param data results of compute_hawkes_histogram
+#' @param width a vector of beds interval width (in the same orde as the data columns)
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' 
+#' @return
+#' tibble
+#' @export
+#'
+#' @importFrom tidyr unnest
+#' @importFrom dplyr mutate filter
+#' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
+#' @importFrom ggplot2 theme_bw element_text
+#' @importFrom checkmate assertCount
+  
+plot_histogram <- function(data, K = 10, delta = 1e4){
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
+  data <- getparam(data = data, K = K, delta = delta) |>
+    tidyr::pivot_longer(
+      cols = c(start, stop),
+      names_to = "coordinates",
+      values_to = "position") |>
+    dplyr::mutate(
+      position = position - max(position) / 2,
+      title = paste(
+        name, "->", vs_name, "|", paste(
+          setdiff(beds$names, c(name, vs_name)), collapse = ", "
+        )
+      )
+    )
+  ggplot2::ggplot() +
+  ggplot2::geom_ribbon(
+    data = data |> dplyr::filter(value >= 0),
+    ggplot2::aes(x = position, ymin = 0, ymax = value),
+    fill = "#EABDBA", color = "black") +
+  ggplot2::geom_ribbon(
+    data = data |> dplyr::filter(value <= 0),
+    ggplot2::aes(x = position, ymin = value, ymax = 0),
+    fill = "#8EBBF5", color = "black") +
+  ggplot2::geom_vline(
+    xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
+  ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
+  ggplot2::facet_wrap(~title, scales = "free_y") +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(
+    angle = 45, vjust = 1, hjust = 1
+  ))
+}
+
+#' hw convolution of the h interaction function with the kernel of the 2
+#' processus
+#'
+#' @param data results of compute_hawkes_histogram
+#' @param width a vector of beds interval width (in the same orde as the data columns)
+#' @param K (default: 10) size of the histogram bins
+#' @param delta (default: 1e4) max range to consider
+#' 
+#' @return
+#' tibble
+#' @export
+#'
+#' @importFrom tidyr unnest
+#' @importFrom dplyr mutate filter
+#' @importFrom ggplot2 geom_vline geom_hline geom_ribbon aes facet_wrap
+#' @importFrom ggplot2 theme_bw element_text
+#' @importFrom checkmate assertCount
+plot_convolution <- function(data, width, K = 10, delta = 1e4){
+  checkmate::assertCount(K, positive = TRUE)
+  checkmate::assertCount(delta, positive = TRUE)
+  data <- convolve_with_kernel(
+    data = data, width = width, K = K, delta = delta
+    ) |> 
+    tidyr::unnest(convolution) |>
+    dplyr::mutate(
+      title = paste(
+        name, "->", vs_name, "|", paste(
+          setdiff(beds$names, c(name, vs_name)), collapse = ", "
+        )
+      )
+    )
+  ggplot2::ggplot() +
+  ggplot2::geom_ribbon(
+    data = data |> dplyr::filter(convolution >= 0),
+    ggplot2::aes(x = position, ymin = 0, ymax = convolution),
+    fill = "#EABDBA", color = "black") +
+  ggplot2::geom_ribbon(
+    data = data |> dplyr::filter(convolution <= 0),
+    ggplot2::aes(x = position, ymin = convolution, ymax = 0),
+    fill = "#8EBBF5", color = "black") +
+  ggplot2::geom_vline(
+    xintercept = 0, color = "gray", size = 0.5, linetype = "dashed") +
+  ggplot2::geom_hline(yintercept = 0, color = "gray", size = 0.5) +
+  ggplot2::facet_wrap(~title, scales = "free_y") +
+  ggplot2::theme_bw() +
+  ggplot2::theme(axis.text.x = ggplot2::element_text(
+    angle = 45, vjust = 1, hjust = 1
+  ))
+}
