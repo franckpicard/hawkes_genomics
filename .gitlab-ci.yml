@@ -18,7 +18,7 @@ before_script:
 devtools-check:
   stage: build
   script:
-    - R -e 'devtools::check()'
+    - R -e 'devtools::check(error_on = "error")'
 
 pages:
   stage: build
