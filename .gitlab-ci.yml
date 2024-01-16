@@ -13,7 +13,7 @@ before_script:
   # install all packages in description file not yet installed:
   # (only works with CRAN packages like this)
   - R -e 'install.packages(setdiff(desc::desc()$get_deps()$package, c(installed.packages(), "R")));'
-  - git submodule update
+  - git submodule init && git submodule update
 
 devtools-check:
   stage: build
