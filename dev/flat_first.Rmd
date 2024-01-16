@@ -108,7 +108,6 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #'
 #' @return
 #' save a list of preprocessed bed files 
-#' @export
 #'
 check_files <- function(files) {
   for (file in files) {
@@ -205,7 +204,7 @@ compute_hawkes_histogram <- function(
 ```
 
 ```{r function-getparam}
-#' getparam
+#' getparam format results from the output of compute_hawkes_histogram
 #'
 #' @param data a matrix of parameters 
 #' @param K (default: 10) size of the histogram bins
@@ -244,7 +243,6 @@ getparam <- function(data, K = 10, delta = 1e4) {
 #'
 #' @return
 #' Median of vector x
-#' @export
 #'
 uniform_kernel <- function(x, width){
   1 * (abs(x) <= width) / width
@@ -263,7 +261,6 @@ uniform_kernel <- function(x, width){
 #' @return
 #' Median of vector x
 #' @importFrom stats convolve
-#' @export
 #'
 triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
   (x / sqrt(delta)) |>
@@ -283,7 +280,6 @@ triple_convolution <- function(position, x, width, vs_width, delta = 1e4) {
 #' 
 #' @return
 #' tibble
-#' @export
 #'
 #' @importFrom dplyr group_by mutate select
 #' @importFrom purrr map_dbl map2 map
