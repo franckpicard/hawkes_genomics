@@ -10,7 +10,7 @@ preprocess_bed(
   names = files,
   maxlag = 1e+05,
   prefix = "",
-  outdir = tempdir()
+  outdir = tempdir(check = TRUE)
 )
 
 preprocess_bed(
@@ -18,7 +18,7 @@ preprocess_bed(
   names = files,
   maxlag = 1e+05,
   prefix = "",
-  outdir = tempdir()
+  outdir = tempdir(check = TRUE)
 )
 }
 \arguments{

@@ -89,7 +89,7 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
     outdir, "/",
     prefix, stringr::str_remove(path[length(path)], ".gz$")
   )
-  checkmate::assertPathForOutput(path)
+  checkmate::assertPathForOutput(path, overwrite = TRUE)
   vroom::vroom_write(
     data,
     file = path,
@@ -107,7 +107,7 @@ write_bed <- function(path, data, outdir, prefix = "clean_") {
 #' @param files a vector of bed files path
 #'
 #' @return
-#' save a list of preprocessed bed files 
+#' save a list of preprocessed bed files
 #'
 check_files <- function(files) {
   for (file in files) {
@@ -135,17 +135,19 @@ check_files <- function(files) {
 #' @param outdir (default: "tempdir()") path for the preprocessed bed files
 #'
 #' @return
-#' save a list of preprocessed bed files 
+#' save a list of preprocessed bed files
 #' @export
 #'
 #' @importFrom tibble tibble
-#' @importFrom dplyr mutate 
+#' @importFrom dplyr mutate
 #' @importFrom purrr map map2
 #' @importFrom tidyr unnest
-#' @importFrom checkmate assertCount
+#' @importFrom checkmate assertCount assertAccess
 preprocess_bed <- function(
-  files, names = files, maxlag = 1e5, prefix = "", outdir = tempdir()) {
+  files, names = files, maxlag = 1e5, prefix = "",
+  outdir = tempdir(check = TRUE)) {
   check_files(files)
+  checkmate::assertAccess(files, "r")
   checkmate::assertCount(maxlag, positive = TRUE)
   tibble::tibble(
     files = files,

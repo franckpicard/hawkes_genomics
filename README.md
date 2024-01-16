@@ -7,6 +7,8 @@ coverage](https://codecov.io/gh/franckpicard/hawkes_genomics/branch/main/graph/b
 [![R-CMD-check](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/franckpicard/hawkes_genomics/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
+[HawkGenomics website](https://franckpicard.github.io/hawkes_genomics/)
+
 # Hawkes genomics
 
 R package to Estimate parameters for a hawkes model over spatial
@@ -43,11 +45,13 @@ remotes::install_git("https://github.com/franckpicard/hawkes_genomics", force = 
 We are going to analyse a subset of the replication origin on the
 chromosme 1 of hg19.
 
+``` r
+library("hawkesGenomics")
+```
+
 ## preprocess data
 
 ``` r
-library("hawkesGenomics")
-
 beds <- preprocess_bed(
   files = c(
     system.file("extdata", "oris.bed.gz", package = "hawkesGenomics"),
@@ -75,6 +79,10 @@ res <- compute_hawkes_histogram(
 plot_histogram(res, K = 5, delta = 1e4)
 ```
 
+<img src="man/figures/README-unnamed-chunk-5-1.png" width="100%" />
+
 ``` r
 plot_convolution(res, width = beds$interval_size, K = 5, delta = 1e4)
 ```
+
+<img src="man/figures/README-unnamed-chunk-6-1.png" width="100%" />
